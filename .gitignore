@@ -1,1 +1,5 @@
 target/
+build/
+mods/
+.project
+.classpath
