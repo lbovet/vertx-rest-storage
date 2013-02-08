@@ -18,16 +18,11 @@ public class JavaRestStorageTest extends TestBase {
     @Test
     public void testSimple() throws Exception {
       start(getMethodName());
-    }
-
-    @Test
-    public void testMore() throws Exception {
-      start(getMethodName());
-    }    
+    }  
     
     private void start(String methName) throws Exception {
       startApp(TestClient.class.getName());
-      startApp(TestProcessor.class.getName());
+      startApp(TestServer.class.getName());
       startTest(methName);
     }
 

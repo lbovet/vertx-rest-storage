@@ -7,10 +7,12 @@ import org.vertx.java.core.logging.Logger;
 public class RestStorage extends BusModBase {
 
     private Logger log;
-
+ 
     @Override
     public void start() {
         log = container.getLogger();
         final EventBus eb = vertx.eventBus();
+
+        vertx.createHttpServer().requestHandler(new RestStorageHandler(new StaticStorage(), "/test")).listen(8989);
     }
 }

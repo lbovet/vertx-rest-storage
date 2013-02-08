@@ -1,16 +1,12 @@
 package li.chee.vertx.reststorage;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-
-import javax.xml.bind.DatatypeConverter;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.EventBus;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.framework.TestClientBase;
 
 public class TestClient extends TestClientBase {
@@ -21,7 +17,7 @@ public class TestClient extends TestClientBase {
     public void start() {
         super.start();
         eb = vertx.eventBus();
-
+        tu.appReady();
     }
 
     @Override
@@ -29,5 +25,22 @@ public class TestClient extends TestClientBase {
         super.stop();
     }
 
-   
+    public void testSimple() {
+        
+        vertx.createHttpClient().setPort(8989).getNow("/test/dogs", new Handler<HttpClientResponse>() {
+            public void handle(HttpClientResponse response) {
+                System.out.println(response.statusCode);
+                Map<String,String> headers = new HashMap<>();
+                headers.putAll(response.headers());
+                System.out.println(headers);
+                response.bodyHandler(new Handler<Buffer>() {
+                    public void handle(Buffer body) {
+                        System.out.println(body.toString());
+                        tu.testComplete();
+                    }
+                });
+            }
+        });       
+    }
+    
 }

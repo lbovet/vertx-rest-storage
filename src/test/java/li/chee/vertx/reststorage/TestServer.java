@@ -1,11 +1,13 @@
 package li.chee.vertx.reststorage;
 
+import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.EventBus;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.deploy.Verticle;
 import org.vertx.java.framework.TestUtils;
 
-public class TestProcessor extends Verticle {    
+public class TestServer extends Verticle {    
     
     private TestUtils tu;
     
@@ -18,7 +20,11 @@ public class TestProcessor extends Verticle {
         
         tu = new TestUtils(vertx);
         
-        tu.appReady();
+        container.deployModule("li.chee.rest-storage-v0.1", new JsonObject(), 1, new Handler<String>() {
+            public void handle(String event) {
+                tu.appReady();
+            }
+        });        
     }
 
     @Override
