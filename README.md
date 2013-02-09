@@ -5,7 +5,7 @@ Persistence for REST resources in the filesystem or a redis database.
 
 Stores resources in a hierarchical way according to their URI. It is actually a generic CRUD REST service.
 
-It uses usual mime mapping to determine content type. Without extension, JSON is assumed.
+It uses usual mime mapping to determine content type so you can also use it as a web server. Without extension, JSON is assumed.
 
 The following methods are supported on leaves:
 * GET: Returns the content of the resource.
