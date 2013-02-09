@@ -7,9 +7,12 @@ import java.util.Properties;
 
 public class MimeTypeResolver {
 
-    Map<String, String> mimeTypes = new HashMap<String,String>();
+    private Map<String, String> mimeTypes = new HashMap<String,String>();
     
-    public MimeTypeResolver() {
+    private String defaultMimeType;
+    
+    public MimeTypeResolver(String defaultMimeType) {
+        this.defaultMimeType = defaultMimeType;
         Properties props = new Properties();
         try {
             props.load(this.getClass().getClassLoader().getResourceAsStream("mime-types.properties"));
@@ -22,7 +25,22 @@ public class MimeTypeResolver {
         }        
     }
     
-    public String getMimeType(String extension) {
-        return mimeTypes.get(extension.toLowerCase());
+    public String resolveMimeType(String path) {
+        int lastSlash = path.lastIndexOf("/");
+        String part = path;
+        if(lastSlash >= 0 && !path.endsWith("/")) {
+            part = part.substring(lastSlash+1);
+        }
+        int dot = part.lastIndexOf(".");
+        if(dot == -1 || part.endsWith(".")) {
+            return defaultMimeType;
+        } else {
+            String extension = part.substring(dot+1);
+            String type = mimeTypes.get(extension.toLowerCase());
+            if(type==null) {
+                type = "text/plain";
+            }
+            return type;
+        }
     }
 }

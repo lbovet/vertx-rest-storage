@@ -13,6 +13,7 @@ public class RestStorage extends BusModBase {
         log = container.getLogger();
         final EventBus eb = vertx.eventBus();
 
-        vertx.createHttpServer().requestHandler(new RestStorageHandler(new StaticStorage(), "/test")).listen(8989);
+        // vertx.createHttpServer().requestHandler(new RestStorageHandler(new StaticStorage(), "/test")).listen(8989);
+        vertx.createHttpServer().requestHandler(new RestStorageHandler(new FileSystemStorage("."), "/test")).listen(8989);
     }
 }
