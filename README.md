@@ -17,7 +17,7 @@ The following methods are supported on intermediate nodes (collections):
 * POST: Stores the request body under a new resources named with a random UUID. 
 * DELETE: Delete the collection and all its members.
 
-Runs either as a module or can be integrated into an existing application by instantiating the RestHandlerHandler class directly.
+Runs either as a module or can be integrated into an existing application by instantiating the RestStorageHandler class directly.
 
 Configuration
 -------------
