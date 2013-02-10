@@ -34,19 +34,39 @@ public class FileSystemStorage implements Storage {
                             if (props.isDirectory) {
                                 fileSystem().readDir(fullPath, new AsyncResultHandler<String[]>() {
                                     public void handle(AsyncResult<String[]> event) {
-                                        CollectionResource c = new CollectionResource();
-                                        c.items = new ArrayList<String>(event.result.length);
-                                        int dirLength = fullPath.length();
-                                        for (String item : event.result) {
-                                            c.items.add(item.substring(dirLength + 1));
+                                        final int length = event.result.length;
+                                        final CollectionResource c = new CollectionResource();
+                                        c.items = new ArrayList<Resource>(length);
+                                        if(length == 0) {
+                                            handler.handle(new AsyncResult<Resource>(c));
+                                            return;
                                         }
-                                        handler.handle(new AsyncResult<Resource>(c));
+                                        final int dirLength = fullPath.length();                                        
+                                        for (final String item : event.result) {
+                                            fileSystem().props(item, new AsyncResultHandler<FileProps>() {
+                                                public void handle(AsyncResult<FileProps> itemProp) {
+                                                    Resource r;
+                                                    if(itemProp.result.isDirectory) {
+                                                        r = new CollectionResource();                                                        
+                                                    } else if (itemProp.result.isRegularFile){
+                                                        r = new DocumentResource();
+                                                    } else {
+                                                        r = new Resource();
+                                                        r.exists = false;
+                                                    }
+                                                    r.name = item.substring(dirLength + 1);
+                                                    c.items.add(r);
+                                                    if(c.items.size() == length) {
+                                                        handler.handle(new AsyncResult<Resource>(c));
+                                                    }
+                                                }
+                                            });                                            
+                                        }                                        
                                     }
                                 });
                             } else if (props.isRegularFile) {
                                 fileSystem().open(fullPath, new AsyncResultHandler<AsyncFile>() {
                                     public void handle(final AsyncResult<AsyncFile> event) {
-                                        System.out.println(props.size);
                                         DocumentResource d = new DocumentResource();
                                         d.length = props.size;
                                         d.readStream = event.result.getReadStream();

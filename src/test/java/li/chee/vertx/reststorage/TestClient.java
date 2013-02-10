@@ -29,9 +29,17 @@ public class TestClient extends TestClientBase {
 
     class PrintHandler implements Handler<HttpClientResponse> {
         boolean complete;
-
+        Handler<Void> next;
+        
+        public PrintHandler() {            
+        }
+        
         public PrintHandler(boolean complete) {
             this.complete = complete;
+        }
+        
+        public PrintHandler(Handler<Void> next) {
+            this.next = next;
         }
 
         public void handle(HttpClientResponse response) {
@@ -42,6 +50,9 @@ public class TestClient extends TestClientBase {
             response.bodyHandler(new Handler<Buffer>() {
                 public void handle(Buffer body) {
                     System.out.println(body.toString());
+                    if(next != null) {
+                        next.handle(null);
+                    }
                     if (complete) {
                         tu.testComplete();
                     }
@@ -50,41 +61,45 @@ public class TestClient extends TestClientBase {
         }
     }
 
+    HttpClient client;
+    
     public void testSimple() {
-        testFileSystemStorage();
-        // testStaticStorage();
+        client = vertx.createHttpClient().setPort(8989);
+        HttpClientRequest request = client.get("/test/", new PrintHandler(step2()));
+        request.headers().put("Accept", "text/html");
+        request.end();
     }
     
-    private void testFileSystemStorage() {
-        HttpClient client = vertx.createHttpClient().setPort(8989);
-        // client.getNow("/test/build", new PrintHandler(true));
-        
-//        String content = "{ \"hello\": \"world\" }";
-//        HttpClientRequest request = client.put("/test/dogs/hello", new PrintHandler(true));
-//        request.headers().put("Content-Length", content.length());
-//        request.write(content);
-//        request.end();
-        
-        HttpClientRequest request = client.delete("/test/dogs/hello", new PrintHandler(true));
-        request.end();
+    private Handler<Void> step2() {
+        return new Handler<Void>() {
+            public void handle(Void event) {
+                String content = "{ \"hello\": \"world\" }";
+                HttpClientRequest request = client.put("/test/hello", new PrintHandler(step3()));
+                request.headers().put("Content-Length", content.length());
+                request.write(content);
+                request.end();
+            }            
+        };
     }
-
-    private void testStaticStorage() {
-        HttpClient client = vertx.createHttpClient().setPort(8989);
-        
-        //client.getNow("/test/dogs", new PrintHandler(false));
-        
-        //client.getNow("/test/hello.txt", new PrintHandler(false));
-        
-        String content = "{ \"hello\": \"world\" }";
-        HttpClientRequest request = client.put("/test/dogs", new PrintHandler(false));
-        request.headers().put("Content-Length", content.length());
-        request.write(content);
-        request.end();
-        
-        HttpClientRequest request2 = client.put("/test/hello", new PrintHandler(true));
-        request2.headers().put("Content-Length", content.length());
-        request2.write(content);
-        request2.end();
+    
+    private Handler<Void> step3() {
+        return new Handler<Void>() {
+            public void handle(Void event) {
+                String content = "{ \"hello\": \"world\" }";
+                HttpClientRequest request = client.put("/test/world", new PrintHandler(step4()));
+                request.headers().put("Content-Length", content.length());
+                request.write(content);
+                request.end();
+            }            
+        };
+    }
+    
+    private Handler<Void> step4() {
+        return new Handler<Void>() {
+            public void handle(Void event) {
+                HttpClientRequest request = client.delete("/test/hello", new PrintHandler(true));
+                request.end();
+            }            
+        };
     }
 }

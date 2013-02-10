@@ -20,7 +20,8 @@ public class TestServer extends Verticle {
         
         tu = new TestUtils(vertx);
         
-        container.deployModule("li.chee.rest-storage-v0.1", new JsonObject(), 1, new Handler<String>() {
+        container.deployModule("li.chee.rest-storage-v0.1", 
+                new JsonObject() {{ putString("prefix", "/test"); putString("root", "dogs");}}, 1, new Handler<String>() {
             public void handle(String event) {
                 tu.appReady();
             }

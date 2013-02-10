@@ -4,3 +4,4 @@ mods/
 .project
 .classpath
 /.gradle
+/dogs

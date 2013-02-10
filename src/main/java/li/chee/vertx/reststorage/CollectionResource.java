@@ -4,5 +4,5 @@ import java.util.List;
 
 
 public class CollectionResource extends Resource {
-    public List<String> items;
+    public List<Resource> items;
 }
