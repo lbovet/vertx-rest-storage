@@ -5,3 +5,4 @@ mods/
 .classpath
 /.gradle
 /dogs
+.settings
