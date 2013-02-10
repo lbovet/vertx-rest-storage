@@ -22,20 +22,20 @@ Runs either as a module or can be integrated into an existing application by ins
 Configuration
 -------------
 
-	{
-		"port": 8989             // Port we listen to. Defaults to 8989.
-		"storage": ...,          // The type of storage (see below). Defaults to "filesystem".		                         
-		"prefix": "/test",       // The part of the URL path before this handler (aka "context path" in JEE terminology). 
-		                         // Defaults to "/".
-	}
+    {
+        "port": 8989        // Port we listen to. Defaults to 8989.
+        "storage": ...,     // The type of storage (see below). Defaults to "filesystem".		                         
+        "prefix": "/test",  // The part of the URL path before this handler (aka "context path" in JEE terminology). 
+                            // Defaults to "/".
+    }
 
 ### File System Storage
 
-	{
-		"storage": "filesystem",                         
-		"root": "/test",        // The directory where the storage has its roo (aka "document root" in Apache terminology).
-		                        // Defaults to "."
-	}
+    {
+        "storage": "filesystem",                         
+        "root": "/test",    // The directory where the storage has its root (aka "document root" in Apache terminology).
+                            // Defaults to "."
+    }
 
 ### Redis Storage
 
