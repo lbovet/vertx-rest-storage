@@ -14,7 +14,6 @@ The following methods are supported on leaves (documents):
 
 The following methods are supported on intermediate nodes (collections):
 * GET: Returns the list of collection members. Serves JSON and HTML representations.
-* POST: Stores the request body under a new resources named with a random UUID. 
 * DELETE: Delete the collection and all its members.
 
 Runs either as a module or can be integrated into an existing application by instantiating the RestHandlerHandler class directly.
@@ -39,9 +38,16 @@ Configuration
 
 ### Redis Storage
 
-_Coming soon_
+	{
+		"storage": "redis",      
+		"address": "redis-client2" // The event bus address of the redis client busmod. 
+		                           // Defaults to "redis-client".                  
+		"root": "test",            // The prefix for the redis keys containing the data. 
+		                           // Defaults to "rest-storage". 
+		                        
+	}
 
 Dependencies
 ------------
 
-Redis persistence uses the redis-client busmod "de.marx-labs.redis-client".
+Redis persistence uses the redis-client busmod "de.marx-labs.redis-client". You must deploy it yourself.

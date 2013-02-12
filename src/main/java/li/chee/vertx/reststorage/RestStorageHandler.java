@@ -17,7 +17,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
     RouteMatcher routeMatcher = new RouteMatcher();
 
-    MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json");
+    MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
 
     public RestStorageHandler(final Storage storage, final String prefix) {
         routeMatcher.getWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
@@ -74,14 +74,15 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     final DocumentResource documentResource = (DocumentResource) resource;
                                     request.response.headers().put("Content-Length", documentResource.length);
                                     request.response.headers().put("Content-Type", mimeTypeResolver.resolveMimeType(path));
+                                    final Pump pump = Pump.createPump(documentResource.readStream, request.response);                                    
                                     documentResource.readStream.endHandler(new SimpleHandler() {
                                         protected void handle() {
                                             documentResource.closeHandler.handle(null);
                                             request.response.end();
                                         }
                                     });
+                                    pump.start();
                                     // TODO: exception handlers
-                                    Pump.createPump(documentResource.readStream, request.response).start();
                                 }
                             }
                         } else {
@@ -136,7 +137,6 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             final DocumentResource documentResource = (DocumentResource) resource;
                             request.endHandler(new SimpleHandler() {
                                 protected void handle() {
-                                    System.out.println("closing");
                                     documentResource.closeHandler.handle(null);
                                     request.response.end();
                                 }

@@ -27,6 +27,12 @@ public class RestStorageMod extends BusModBase {
             String root = config.getString("root", ".");
             storage = new FileSystemStorage(root);
             break;
+        case "redis":
+            JsonObject redisConfig = new JsonObject();
+            String redisAddress = config.getString("address", "redis-client");
+            String redisPrefix = config.getString("root", "rest-storage");
+            storage = new RedisStorage(redisAddress, redisPrefix);
+            break;
         default:
             throw new RuntimeException("Storage not supported: "+storageName);
         }

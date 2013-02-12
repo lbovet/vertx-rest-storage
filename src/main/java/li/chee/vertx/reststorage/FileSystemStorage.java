@@ -140,7 +140,6 @@ public class FileSystemStorage implements Storage {
         fileSystem().open(tempFile, new AsyncResultHandler<AsyncFile>() {
             public void handle(final AsyncResult<AsyncFile> event) {
                 if (event.succeeded()) {
-                    System.out.println(fullPath);
                     DocumentResource d = new DocumentResource();
                     d.writeStream = event.result.getWriteStream();
                     d.closeHandler = new SimpleHandler() {
