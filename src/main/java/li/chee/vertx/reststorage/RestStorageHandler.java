@@ -12,6 +12,7 @@ import org.vertx.java.core.http.RouteMatcher;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.streams.Pump;
+import org.vertx.java.deploy.impl.VertxLocator;
 
 public class RestStorageHandler implements Handler<HttpServerRequest> {
 
@@ -135,14 +136,19 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                         if (resource instanceof DocumentResource) {
                             request.resume();
                             final DocumentResource documentResource = (DocumentResource) resource;
+                            documentResource.endHandler = new Handler<Void>() {
+                                public void handle(Void event) {
+                                    request.response.end();
+                                }
+                            };                            
+                            final Pump pump = Pump.createPump(request, documentResource.writeStream);
                             request.endHandler(new SimpleHandler() {
                                 protected void handle() {
-                                    documentResource.closeHandler.handle(null);
-                                    request.response.end();
+                                    documentResource.closeHandler.handle(null);                                    
                                 }
                             });
                             // TODO: exception handlers
-                            Pump.createPump(request, documentResource.writeStream).start();
+                            pump.start();
                         }
                     }
                 });
@@ -150,7 +156,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         });
         routeMatcher.deleteWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
-                final String path = cleanPath(request.path.substring(prefix.length()));
+                System.out.println("delete");
+                final String path = cleanPath(request.path.substring(prefix.length()));                
                 storage.delete(path, new Handler<AsyncResult<Resource>>() {
                     public void handle(AsyncResult<Resource> event) {
                         Resource resource = event.result;

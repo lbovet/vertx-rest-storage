@@ -5,13 +5,12 @@ import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.deploy.Verticle;
-import org.vertx.java.framework.TestUtils;
+import org.vertx.java.testframework.TestUtils;
 
 public class TestServer extends Verticle {    
     
     private TestUtils tu;
     
-
     @Override
     public void start() throws Exception {
         final Logger log = container.getLogger();
@@ -20,7 +19,7 @@ public class TestServer extends Verticle {
         
         tu = new TestUtils(vertx);
         
-        container.deployModule("li.chee.rest-storage-v0.1", 
+        container.deployModule("li.chee.rest-storage-v0.2", 
                 new JsonObject() {{ putString("prefix", "/test"); putString("root", "dogs");}}, 1, new Handler<String>() {
             public void handle(String event) {
                 tu.appReady();

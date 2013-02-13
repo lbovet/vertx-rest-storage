@@ -56,7 +56,7 @@ public class RedisStorage implements Storage {
                                 toRead = size - position;
                             }
                             byte[] bytes = new byte[toRead];
-                            content.read(bytes, position, toRead);
+                            content.read(bytes, 0, toRead);
                             dataHandler.handle(new Buffer(bytes));
                             position += toRead;
                             doRead();
@@ -226,7 +226,7 @@ public class RedisStorage implements Storage {
                     }
                 }
                 if (!collection) {
-                    DocumentResource d = new DocumentResource();
+                    final DocumentResource d = new DocumentResource();
                     final ByteArrayWriteStream stream = new ByteArrayWriteStream();
                     d.writeStream = stream;
                     d.closeHandler = new Handler<Void>() {
@@ -237,7 +237,7 @@ public class RedisStorage implements Storage {
                             command.putString("value", encodeBinary(stream.getBytes()));
                             eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                                 public void handle(Message<JsonObject> event) {
-                                    // hope it worked
+                                    d.endHandler.handle(null);
                                 }
                             });
                         }

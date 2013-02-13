@@ -46,6 +46,8 @@ Configuration
 		                           // Defaults to "rest-storage". 
 		                        
 	}
+	
+Caution: The redis storage implementation does not currently support streaming. Avoid transfering too big payloads since they will be entirely copied in memory.
 
 Dependencies
 ------------

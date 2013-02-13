@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import org.omg.CosNaming.NamingContextPackage.NotFound;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
@@ -140,17 +141,17 @@ public class FileSystemStorage implements Storage {
         fileSystem().open(tempFile, new AsyncResultHandler<AsyncFile>() {
             public void handle(final AsyncResult<AsyncFile> event) {
                 if (event.succeeded()) {
-                    DocumentResource d = new DocumentResource();
+                    final DocumentResource d = new DocumentResource();
                     d.writeStream = event.result.getWriteStream();
                     d.closeHandler = new SimpleHandler() {
                         protected void handle() {
                             event.result.close(new AsyncResultHandler<Void>() {
                                 public void handle(AsyncResult<Void> event) {
-                                    fileSystem().delete(fullPath, new AsyncResultHandler<Void>() {
+                                    fileSystem().delete(fullPath, new AsyncResultHandler<Void>() {                                        
                                         public void handle(AsyncResult<Void> event) {
                                             fileSystem().move(tempFile, fullPath, new AsyncResultHandler<Void>() {
                                                 public void handle(AsyncResult<Void> event) {
-                                                    // do nothing
+                                                    d.endHandler.handle(null);
                                                 }
                                             });
                                         }
@@ -171,9 +172,9 @@ public class FileSystemStorage implements Storage {
 
     @Override
     public void delete(String path, final Handler<AsyncResult<Resource>> handler) {
-        final String fullPath = canonicalize(path);
+        final String fullPath = canonicalize(path);        
         fileSystem().exists(fullPath, new AsyncResultHandler<Boolean>() {
-            public void handle(AsyncResult<Boolean> event) {
+            public void handle(AsyncResult<Boolean> event) {                
                 if (event.result) {
                     fileSystem().delete(fullPath, true, new AsyncResultHandler<Void>() {
                         public void handle(AsyncResult<Void> event) {
@@ -184,6 +185,10 @@ public class FileSystemStorage implements Storage {
                             handler.handle(new AsyncResult<Resource>(resource));
                         }
                     });
+                } else {
+                    Resource r = new Resource();
+                    r.exists = false;
+                    handler.handle(new AsyncResult<Resource>(r));
                 }
             }
         });

@@ -9,7 +9,8 @@ import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
-import org.vertx.java.framework.TestClientBase;
+import org.vertx.java.testframework.TestClientBase;
+
 
 public class TestClient extends TestClientBase {
 
@@ -73,10 +74,14 @@ public class TestClient extends TestClientBase {
     private Handler<Void> step2() {
         return new Handler<Void>() {
             public void handle(Void event) {
-                String content = "{ \"hello\": \"world\" }";
+                StringBuilder content = new StringBuilder("{");
+                for(int i=0; i<10000; i++) {
+                     content.append(" \"hello\": \"world\",\n");
+                }
+                content.append("\"hello\": \"world\" }");
                 HttpClientRequest request = client.put("/test/hello", new PrintHandler(step3()));
                 request.headers().put("Content-Length", content.length());
-                request.write(content);
+                request.write(content.toString());
                 request.end();
             }            
         };
@@ -97,7 +102,7 @@ public class TestClient extends TestClientBase {
     private Handler<Void> step4() {
         return new Handler<Void>() {
             public void handle(Void event) {
-                HttpClientRequest request = client.delete("/test/hello", new PrintHandler(true));
+                HttpClientRequest request = client.delete("/test/world", new PrintHandler(true));
                 request.end();
             }            
         };

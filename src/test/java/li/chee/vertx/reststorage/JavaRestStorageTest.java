@@ -1,7 +1,8 @@
 package li.chee.vertx.reststorage;
 
 import org.junit.Test;
-import org.vertx.java.framework.TestBase;
+import org.vertx.java.testframework.TestBase;
+
 
 public class JavaRestStorageTest extends TestBase {
 

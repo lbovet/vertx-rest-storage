@@ -1,6 +1,7 @@
 package li.chee.vertx.reststorage;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -14,10 +15,17 @@ public class MimeTypeResolver {
     public MimeTypeResolver(String defaultMimeType) {
         this.defaultMimeType = defaultMimeType;
         Properties props = new Properties();
-        try {
-            props.load(this.getClass().getClassLoader().getResourceAsStream("mime-types.properties"));
-        } catch (IOException e) {
+        InputStream in = this.getClass().getClassLoader().getResourceAsStream("mime-types.properties");
+        try {            
+            props.load(in);
+        } catch (IOException e) {            
             throw new RuntimeException(e);
+        } finally {
+            try {
+                in.close();
+            } catch (IOException e) {
+                // Ignore
+            }
         }
         
         for( Map.Entry<Object, Object> entry : props.entrySet()) {

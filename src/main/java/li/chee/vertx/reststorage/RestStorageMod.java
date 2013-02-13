@@ -28,7 +28,9 @@ public class RestStorageMod extends BusModBase {
             storage = new FileSystemStorage(root);
             break;
         case "redis":
-            JsonObject redisConfig = new JsonObject();
+            if(config.getObject("redisConfig") != null) {
+                container.deployModule("de.marx-labs.redis-client-v0.4", config.getObject("redisConfig"));
+            }
             String redisAddress = config.getString("address", "redis-client");
             String redisPrefix = config.getString("root", "rest-storage");
             storage = new RedisStorage(redisAddress, redisPrefix);
