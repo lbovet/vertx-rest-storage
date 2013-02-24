@@ -3,6 +3,7 @@ package li.chee.vertx.reststorage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.UUID;
 
 import org.omg.CosNaming.NamingContextPackage.NotFound;
@@ -58,6 +59,7 @@ public class FileSystemStorage implements Storage {
                                                     r.name = item.substring(dirLength + 1);
                                                     c.items.add(r);
                                                     if(c.items.size() == length) {
+                                                        Collections.sort(c.items);
                                                         handler.handle(new AsyncResult<Resource>(c));
                                                     }
                                                 }

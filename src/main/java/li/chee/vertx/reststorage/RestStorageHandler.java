@@ -104,8 +104,6 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 documents.add(name);
                             }                            
                         }
-                        Collections.sort(collections);
-                        Collections.sort(documents);
                         collections.addAll(documents);
                         return collections;
                     }
