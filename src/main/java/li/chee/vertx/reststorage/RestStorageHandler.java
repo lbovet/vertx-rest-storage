@@ -1,7 +1,6 @@
 package li.chee.vertx.reststorage;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.vertx.java.core.AsyncResult;
@@ -12,7 +11,6 @@ import org.vertx.java.core.http.RouteMatcher;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.streams.Pump;
-import org.vertx.java.deploy.impl.VertxLocator;
 
 public class RestStorageHandler implements Handler<HttpServerRequest> {
 

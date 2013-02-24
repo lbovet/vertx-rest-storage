@@ -1,18 +1,12 @@
 package li.chee.vertx.reststorage;
 
 import org.vertx.java.busmods.BusModBase;
-import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
 
 public class RestStorageMod extends BusModBase {
 
-    private Logger log;
-
     @Override
     public void start() {
-        log = container.getLogger();
-        final EventBus eb = vertx.eventBus();
 
         JsonObject config = container.getConfig();
 
