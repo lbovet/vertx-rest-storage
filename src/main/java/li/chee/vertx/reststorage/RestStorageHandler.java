@@ -154,7 +154,6 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         });
         routeMatcher.deleteWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
-                System.out.println("delete");
                 final String path = cleanPath(request.path.substring(prefix.length()));                
                 storage.delete(path, new Handler<AsyncResult<Resource>>() {
                     public void handle(AsyncResult<Resource> event) {

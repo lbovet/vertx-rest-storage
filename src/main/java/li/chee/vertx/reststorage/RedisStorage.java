@@ -100,7 +100,6 @@ public class RedisStorage implements Storage {
     @Override
     public void get(String path, final Handler<AsyncResult<Resource>> handler) {
         final String key = encodePath(path);
-        System.out.println(path+" "+key);
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
         command.putString("pattern", key + "*");
@@ -118,7 +117,6 @@ public class RedisStorage implements Storage {
                         collection=true;
                     }
                 }
-                System.out.println(collection);
                 if (!collection) { // Document
                     if(!list.contains(key)) {
                         notFound(handler);
@@ -272,7 +270,6 @@ public class RedisStorage implements Storage {
                 Iterator<Object> it = list.iterator();
                 while(it.hasNext()) {
                     String item = (String)it.next(); 
-                    System.out.println(item+ " "+key);
                     if(!item.equals(key) && item.charAt(key.length()) != ':') {
                         it.remove();
                     }
