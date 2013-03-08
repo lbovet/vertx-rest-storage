@@ -19,6 +19,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
 
     public RestStorageHandler(final Storage storage, final String prefix) {
+
         routeMatcher.getWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path.substring(prefix.length()));
@@ -41,9 +42,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                         StringBuilder body = new StringBuilder();
                                         body.append("<!DOCTYPE html>\n");
                                         body.append("<html><head><title>" + collectionName + "</title></head>");
-                                        body.append("<body><h1>" + htmlPath(prefix+path) + "</h1><ul><li><a href=\"..\">..</a></li>");
+                                        body.append("<body style='font-family: helvetica'><h1>" + htmlPath(prefix + path) + "</h1><ul><li><a href=\"..\">..</a></li>");
                                         List<String> sortedNames = sortedNames(collection);
-                                        for(String name: sortedNames) {
+                                        for (String name : sortedNames) {
                                             body.append("<li><a href=\"" + name + "\">" + name + "</a></li>");
                                         }
                                         body.append("</ul></body></html>");
@@ -53,7 +54,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     } else {
                                         JsonArray array = new JsonArray();
                                         List<String> sortedNames = sortedNames(collection);
-                                        for(String name: sortedNames) {
+                                        for (String name : sortedNames) {
                                             array.addString(name);
                                         }
                                         String body = new JsonObject().putArray(collectionName, array).encode();
@@ -73,7 +74,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     final DocumentResource documentResource = (DocumentResource) resource;
                                     request.response.headers().put("Content-Length", documentResource.length);
                                     request.response.headers().put("Content-Type", mimeTypeResolver.resolveMimeType(path));
-                                    final Pump pump = Pump.createPump(documentResource.readStream, request.response);                                    
+                                    final Pump pump = Pump.createPump(documentResource.readStream, request.response);
                                     documentResource.readStream.endHandler(new SimpleHandler() {
                                         protected void handle() {
                                             documentResource.closeHandler.handle(null);
@@ -97,10 +98,10 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                         for (Resource r : collection.items) {
                             String name = r.name;
                             if (r instanceof CollectionResource) {
-                                collections.add(name+"/");
+                                collections.add(name + "/");
                             } else {
                                 documents.add(name);
-                            }                            
+                            }
                         }
                         collections.addAll(documents);
                         return collections;
@@ -111,8 +112,10 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         routeMatcher.putWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 request.pause();
-                final String path = cleanPath(request.path.substring(prefix.length()));
-                storage.put(path, new Handler<AsyncResult<Resource>>() {
+                final String path = cleanPath(request.path.substring(prefix.length()));             
+                boolean merge = (request.query != null && request.query.contains("merge=true")
+                        && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
+                storage.put(path, merge, new Handler<AsyncResult<Resource>>() {
                     public void handle(AsyncResult<Resource> event) {
                         Resource resource = event.result;
                         if (!resource.exists) {
@@ -132,15 +135,22 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                         if (resource instanceof DocumentResource) {
                             request.resume();
                             final DocumentResource documentResource = (DocumentResource) resource;
+                            documentResource.errorHandler = new Handler<String>() {
+                                public void handle(String error) {
+                                    request.response.statusCode=400;
+                                    request.response.statusMessage="Bad Request";
+                                    request.response.end(error);
+                                }
+                            };
                             documentResource.endHandler = new Handler<Void>() {
                                 public void handle(Void event) {
                                     request.response.end();
                                 }
-                            };                            
+                            };
                             final Pump pump = Pump.createPump(request, documentResource.writeStream);
                             request.endHandler(new SimpleHandler() {
                                 protected void handle() {
-                                    documentResource.closeHandler.handle(null);                                    
+                                    documentResource.closeHandler.handle(null);
                                 }
                             });
                             // TODO: exception handlers
@@ -152,7 +162,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         });
         routeMatcher.deleteWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
-                final String path = cleanPath(request.path.substring(prefix.length()));                
+                final String path = cleanPath(request.path.substring(prefix.length()));
                 storage.delete(path, new Handler<AsyncResult<Resource>>() {
                     public void handle(AsyncResult<Resource> event) {
                         Resource resource = event.result;
@@ -173,7 +183,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 request.response.statusMessage = "Not Found";
                 request.response.end("404 Not Found");
             }
-        });        
+        });
     }
 
     @Override
@@ -199,20 +209,20 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             return path.substring(path.lastIndexOf("/") + 1);
         }
     }
-    
+
     private String htmlPath(String path) {
-        if(path.equals("/")) {
+        if (path.equals("/")) {
             return "/";
         }
         StringBuilder sb = new StringBuilder("");
         StringBuilder p = new StringBuilder();
         String[] parts = path.split("/");
-        for(int i=0; i<parts.length; i++) {
+        for (int i = 0; i < parts.length; i++) {
             String part = parts[i];
             p.append(part);
             p.append("/");
-            if(i < parts.length-1) {
-                sb.append(" <a href=\"");            
+            if (i < parts.length - 1) {
+                sb.append(" <a href=\"");
                 sb.append(p);
                 sb.append("\">");
                 sb.append(part);

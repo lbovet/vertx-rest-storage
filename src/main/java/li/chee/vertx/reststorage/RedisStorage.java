@@ -1,8 +1,10 @@
 package li.chee.vertx.reststorage;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,11 +29,32 @@ public class RedisStorage implements Storage {
     private String redisAddress;
     private String redisPrefix;
     private EventBus eb;
-
+    private String mergeScript;
+    
     public RedisStorage(String redisAddress, String redisPrefix) {
         this.redisAddress = redisAddress;
         this.redisPrefix = redisPrefix;
         eb = VertxLocator.vertx.eventBus();
+        
+        BufferedReader in = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("json-merge.lua")));
+        StringBuilder sb;
+        try {            
+            sb = new StringBuilder();
+            String line;
+            while( (line = in.readLine()) != null ) {
+                sb.append(line+"\n");
+            }
+            
+        } catch (IOException e) {            
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                in.close();
+            } catch (IOException e) {
+                // Ignore
+            }
+        }
+        mergeScript = sb.toString();
     }
 
     public class ByteArrayReadStream implements ReadStream {
@@ -213,7 +236,7 @@ public class RedisStorage implements Storage {
     }
 
     @Override
-    public void put(String path, final Handler<AsyncResult<Resource>> handler) {
+    public void put(String path, final boolean merge, final Handler<AsyncResult<Resource>> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
@@ -235,12 +258,24 @@ public class RedisStorage implements Storage {
                     d.closeHandler = new Handler<Void>() {
                         public void handle(Void event) {
                             JsonObject command = new JsonObject();
-                            command.putString("command", "set");
-                            command.putString("key", key);
-                            command.putString("value", encodeBinary(stream.getBytes()));
+                            if(merge) {
+                                command.putString("command", "eval");
+                                command.putString("script", mergeScript);
+                                command.putNumber("numkeys", 1);
+                                command.putArray("key", new JsonArray( new Object[] { key }));
+                                command.putArray("arg", new JsonArray( new Object[] { encodeBinary(stream.getBytes())} ));
+                            } else {
+                                command.putString("command", "set");
+                                command.putString("key", key);
+                                command.putString("value", encodeBinary(stream.getBytes()));
+                            }
                             eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                                 public void handle(Message<JsonObject> event) {
-                                    d.endHandler.handle(null);
+                                    if("error".equals(event.body.getString("status")) && d.errorHandler != null) {
+                                        d.errorHandler.handle(event.body.getString("message"));
+                                    } else {
+                                        d.endHandler.handle(null);
+                                    }
                                 }
                             });
                         }

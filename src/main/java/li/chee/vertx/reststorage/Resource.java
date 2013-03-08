@@ -1,9 +1,13 @@
 package li.chee.vertx.reststorage;
 
+import org.vertx.java.core.Handler;
+
 
 public class Resource implements Comparable<Resource>{
     public String name;
     public boolean exists=true;
+    
+    public Handler<String> errorHandler;
     
     @Override
     public int compareTo(Resource o) {
