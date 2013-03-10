@@ -1,7 +1,11 @@
 package li.chee.vertx.reststorage;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -18,8 +22,16 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
     MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
 
-    public RestStorageHandler(final Storage storage, final String prefix) {
+    Map<String, String> editors = new LinkedHashMap<>();
+    
+    public RestStorageHandler(final Storage storage, final String prefix, JsonObject editorConfig) {
 
+        if(editorConfig != null) {
+            for( Entry<String, Object> entry: editorConfig.toMap().entrySet()) {
+                editors.put(entry.getKey(), entry.getValue().toString());
+            }
+        }
+        
         routeMatcher.getWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path.substring(prefix.length()));
@@ -40,12 +52,24 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     String collectionName = collectionName(path);
                                     if (html) {
                                         StringBuilder body = new StringBuilder();
+                                        String editor = null;
+                                        if(editors.size()>0) {
+                                            editor = editors.values().iterator().next();
+                                        }
                                         body.append("<!DOCTYPE html>\n");
-                                        body.append("<html><head><title>" + collectionName + "</title></head>");
-                                        body.append("<body style='font-family: helvetica'><h1>" + htmlPath(prefix + path) + "</h1><ul><li><a href=\"..\">..</a></li>");
+                                        body.append("<html><head><title>" + collectionName + "</title>");
+                                        body.append("<link href='//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css' rel='stylesheet'></head>");
+                                        body.append("<body><div style='font-size: 2em; height:48px; border-bottom: 1px solid lightgray; color: darkgray'><div style='padding:12px;'>" + htmlPath(prefix + path) + "</div>");
+                                        if(editor != null) {
+                                            String editorString=editor.replace("$path", path+(path.equals("/")? "" : "/")+"$new");
+                                            body.append("<div style='position: fixed; top: 8px; right: 20px;'>" +
+                                                    "<input id='name' type='text' placeholder='New Resource…' onkeydown='if (event.keyCode == 13) { if(document.getElementById(\"name\").value) {window.location=\""+editorString+"\".replace(\"$new\",document.getElementById(\"name\").value);}}'></input></div>");
+                                        }
+                                        body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"..\">..</a></li>");
                                         List<String> sortedNames = sortedNames(collection);
                                         for (String name : sortedNames) {
-                                            body.append("<li><a href=\"" + name + "\">" + name + "</a></li>");
+                                            body.append("<li><a href=\"" + name + "\">" + name + "</a>");
+                                            body.append("</li>");
                                         }
                                         body.append("</ul></body></html>");
                                         request.response.headers().put("Content-Length", body.length());
@@ -70,10 +94,22 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     request.response.statusMessage = "Found";
                                     request.response.headers().put("Location", request.uri.substring(0, request.uri.length() - 1));
                                     request.response.end();
-                                } else {
+                                } else {                                    
+                                    String mimeType = mimeTypeResolver.resolveMimeType(path);
+                                    if(request.headers().containsKey("Accept") && request.headers().get("Accept").contains("text/html")) {
+                                        String editor = editors.get(mimeType.split(";")[0]);
+                                        if(editor != null) {
+                                            request.response.statusCode = 302;
+                                            request.response.statusMessage = "Found";
+                                            request.response.headers().put("Location", editor.replaceAll("\\$path", path));
+                                            request.response.end();
+                                            return;
+                                        }
+                                    }
+                                    
                                     final DocumentResource documentResource = (DocumentResource) resource;
                                     request.response.headers().put("Content-Length", documentResource.length);
-                                    request.response.headers().put("Content-Type", mimeTypeResolver.resolveMimeType(path));
+                                    request.response.headers().put("Content-Type", mimeType);
                                     final Pump pump = Pump.createPump(documentResource.readStream, request.response);
                                     documentResource.readStream.endHandler(new SimpleHandler() {
                                         protected void handle() {

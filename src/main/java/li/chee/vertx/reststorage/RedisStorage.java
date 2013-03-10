@@ -312,6 +312,7 @@ public class RedisStorage implements Storage {
                 JsonObject command = new JsonObject();
                 command.putString("command", "del");
                 command.putArray("keys", list);
+                command.putArray("key", list);
                 eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                     public void handle(Message<JsonObject> event) {
                         Resource r = new Resource();

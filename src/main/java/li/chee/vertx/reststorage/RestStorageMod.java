@@ -13,6 +13,7 @@ public class RestStorageMod extends BusModBase {
         String storageName = config.getString("storage", "filesystem");
         int port = config.getNumber("port", 8989).intValue();
         String prefix = config.getString("prefix", "");
+        JsonObject editorConfig = config.getObject("editors");
         prefix = prefix.equals("/") ? "" : prefix;
 
         Storage storage;
@@ -33,6 +34,6 @@ public class RestStorageMod extends BusModBase {
             throw new RuntimeException("Storage not supported: "+storageName);
         }
 
-        vertx.createHttpServer().requestHandler(new RestStorageHandler(storage, prefix)).listen(port);
+        vertx.createHttpServer().requestHandler(new RestStorageHandler(storage, prefix, editorConfig)).listen(port);
     }
 }
