@@ -24,6 +24,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
     Map<String, String> editors = new LinkedHashMap<>();
     
+    String newMarker = "?new=true";
+    
     public RestStorageHandler(final Storage storage, final String prefix, JsonObject editorConfig) {
 
         if(editorConfig != null) {
@@ -42,7 +44,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             String accept = request.headers().get("Accept");
                             boolean html = (accept != null && accept.contains("text/html"));
                             if (resource instanceof CollectionResource) {
-                                if (!request.uri.endsWith("/")) {
+                                if (!request.uri.endsWith("/") && !request.uri.contains("/?")) {
                                     request.response.statusCode = 302;
                                     request.response.statusMessage = "Found";
                                     request.response.headers().put("Location", request.uri + "/");
@@ -50,7 +52,17 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 } else {
                                     CollectionResource collection = (CollectionResource) resource;
                                     String collectionName = collectionName(path);
-                                    if (html) {
+                                    if (html) {                                        
+                                        if(!(request.query!=null && request.query.contains("follow=off")) &&
+                                                collection.items.size() == 1 &&
+                                                collection.items.get(0) instanceof CollectionResource ) {
+                                            request.response.statusCode = 302;
+                                            request.response.statusMessage = "Found";
+                                            request.response.headers().put("Location", (request.uri)+collection.items.get(0).name);
+                                            request.response.end();
+                                            return;
+                                        }
+                                        
                                         StringBuilder body = new StringBuilder();
                                         String editor = null;
                                         if(editors.size()>0) {
@@ -60,12 +72,13 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                         body.append("<html><head><title>" + collectionName + "</title>");
                                         body.append("<link href='//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css' rel='stylesheet'></head>");
                                         body.append("<body><div style='font-size: 2em; height:48px; border-bottom: 1px solid lightgray; color: darkgray'><div style='padding:12px;'>" + htmlPath(prefix + path) + "</div>");
-                                        if(editor != null) {
+                                        if(editor != null) {                                            
                                             String editorString=editor.replace("$path", path+(path.equals("/")? "" : "/")+"$new");
+                                            editorString=editorString.replaceFirst("\\?", newMarker);                                            
                                             body.append("<div style='position: fixed; top: 8px; right: 20px;'>" +
                                                     "<input id='name' type='text' placeholder='New Resource…' onkeydown='if (event.keyCode == 13) { if(document.getElementById(\"name\").value) {window.location=\""+editorString+"\".replace(\"$new\",document.getElementById(\"name\").value);}}'></input></div>");
                                         }
-                                        body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"..\">..</a></li>");
+                                        body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"..?follow=off\">..</a></li>");
                                         List<String> sortedNames = sortedNames(collection);
                                         for (String name : sortedNames) {
                                             body.append("<li><a href=\"" + name + "\">" + name + "</a>");
@@ -101,7 +114,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                         if(editor != null) {
                                             request.response.statusCode = 302;
                                             request.response.statusMessage = "Found";
-                                            request.response.headers().put("Location", editor.replaceAll("\\$path", path));
+                                            String editorString = editor.replaceAll("\\$path", path);
+                                            request.response.headers().put("Location", editorString);                                            
                                             request.response.end();
                                             return;
                                         }
@@ -260,7 +274,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             if (i < parts.length - 1) {
                 sb.append(" <a href=\"");
                 sb.append(p);
-                sb.append("\">");
+                sb.append("?follow=off\">");
                 sb.append(part);
                 sb.append("/</a>");
             } else {
