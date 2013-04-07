@@ -17,10 +17,12 @@ public class RestStorageMod extends BusModBase {
         prefix = prefix.equals("/") ? "" : prefix;
 
         Storage storage;
+        String etag;
         switch (storageName) {
         case "filesystem":
             String root = config.getString("root", ".");
             storage = new FileSystemStorage(root);
+            etag = config.getString("etag", "none");
             break;
         case "redis":
             if(config.getObject("redisConfig") != null) {
@@ -29,11 +31,13 @@ public class RestStorageMod extends BusModBase {
             String redisAddress = config.getString("address", "redis-client");
             String redisPrefix = config.getString("root", "rest-storage");
             storage = new RedisStorage(redisAddress, redisPrefix);
+            etag = config.getString("etag", "memory");
             break;
         default:
             throw new RuntimeException("Storage not supported: "+storageName);
         }
 
-        vertx.createHttpServer().requestHandler(new RestStorageHandler(storage, prefix, editorConfig)).listen(port);
+        EtagStore etagStore = etag.equals("memory") ? new SharedMapEtagStore(vertx) : new EmptyEtagStore();
+        vertx.createHttpServer().requestHandler(new RestStorageHandler(storage, etagStore, prefix, editorConfig)).listen(port);
     }
 }
