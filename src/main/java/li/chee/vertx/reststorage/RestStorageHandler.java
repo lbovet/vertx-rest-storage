@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -69,16 +68,16 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                             editor = editors.values().iterator().next();
                                         }
                                         body.append("<!DOCTYPE html>\n");
-                                        body.append("<html><head><title>" + collectionName + "</title>");
+                                        body.append("<html><head><meta charset='utf-8'/><title>" + collectionName + "</title>");
                                         body.append("<link href='//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css' rel='stylesheet'></head>");
                                         body.append("<body><div style='font-size: 2em; height:48px; border-bottom: 1px solid lightgray; color: darkgray'><div style='padding:12px;'>" + htmlPath(prefix + path) + "</div>");
                                         if(editor != null) {                                            
                                             String editorString=editor.replace("$path", path+(path.equals("/")? "" : "/")+"$new");
                                             editorString=editorString.replaceFirst("\\?", newMarker);                                            
                                             body.append("<div style='position: fixed; top: 8px; right: 20px;'>" +
-                                                    "<input id='name' type='text' placeholder='New Resource…' onkeydown='if (event.keyCode == 13) { if(document.getElementById(\"name\").value) {window.location=\""+editorString+"\".replace(\"$new\",document.getElementById(\"name\").value);}}'></input></div>");
+                                                    "<input id='name' type='text' placeholder='New Resource\u2026' onkeydown='if (event.keyCode == 13) { if(document.getElementById(\"name\").value) {window.location=\""+editorString+"\".replace(\"$new\",document.getElementById(\"name\").value);}}'></input></div>");
                                         }
-                                        body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"..?follow=off\">..</a></li>");
+                                        body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"../?follow=off\">..</a></li>");
                                         List<String> sortedNames = sortedNames(collection);
                                         for (String name : sortedNames) {
                                             body.append("<li><a href=\"" + name + "\">" + name + "</a>");
@@ -276,7 +275,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 sb.append(p);
                 sb.append("?follow=off\">");
                 sb.append(part);
-                sb.append("/</a>");
+                sb.append("</a> > ");
             } else {
                 sb.append(" ");
                 sb.append(part);
