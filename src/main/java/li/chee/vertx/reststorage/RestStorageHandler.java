@@ -25,7 +25,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     
     String newMarker = "?new=true";
     
-    public RestStorageHandler(final Storage storage, final String prefix, JsonObject editorConfig) {
+    public RestStorageHandler(final Storage storage, final EtagStore etagStore, final String prefix, JsonObject editorConfig) {
 
         if(editorConfig != null) {
             for( Entry<String, Object> entry: editorConfig.toMap().entrySet()) {
@@ -36,6 +36,16 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         routeMatcher.getWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path.substring(prefix.length()));
+
+                String etag = request.headers().get("if-none-match");
+                final String resourceEtag = etagStore.get(path);
+                if(resourceEtag.equals(etag)) {                    
+                    request.response.statusCode = 304;
+                    request.response.statusMessage = "Not Modified";
+                    request.response.end();
+                    return;               
+                }
+                
                 storage.get(path, new Handler<AsyncResult<Resource>>() {
                     public void handle(AsyncResult<Resource> event) {
                         Resource resource = event.result;
@@ -121,6 +131,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     }
                                     
                                     final DocumentResource documentResource = (DocumentResource) resource;
+                                    if(resourceEtag != "") {
+                                        request.response.headers().put("Etag", resourceEtag);
+                                    }
                                     request.response.headers().put("Content-Length", documentResource.length);
                                     request.response.headers().put("Content-Type", mimeType);
                                     final Pump pump = Pump.createPump(documentResource.readStream, request.response);
@@ -180,20 +193,21 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             request.response.headers().put("Allow", "GET, DELETE");
                             request.response.end();
                         }
-                        // TODO: merge existing JSON resources
                         if (resource instanceof DocumentResource) {
                             request.resume();
                             final DocumentResource documentResource = (DocumentResource) resource;
                             documentResource.errorHandler = new Handler<String>() {
-                                public void handle(String error) {
+                                public void handle(String error) {                                    
                                     request.response.statusCode=400;
                                     request.response.statusMessage="Bad Request";
                                     request.response.end(error);
+                                    etagStore.reset(path);
                                 }
                             };
                             documentResource.endHandler = new Handler<Void>() {
                                 public void handle(Void event) {
                                     request.response.end();
+                                    etagStore.reset(path);
                                 }
                             };
                             final Pump pump = Pump.createPump(request, documentResource.writeStream);
@@ -220,6 +234,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             request.response.statusMessage = "Not Found";
                             request.response.end("404 Not Found");
                         } else {
+                            etagStore.reset(path);
                             request.response.end();
                         }
                     }
@@ -231,6 +246,14 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 request.response.statusCode = 404;
                 request.response.statusMessage = "Not Found";
                 request.response.end("404 Not Found");
+            }
+        });
+        
+        routeMatcher.all(".*", new Handler<HttpServerRequest>() {
+            public void handle(HttpServerRequest request) {
+                request.response.statusCode = 405;
+                request.response.statusMessage = "Method Not Allowed";
+                request.response.end("405 Method Not Allowed");
             }
         });
     }
