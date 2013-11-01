@@ -53,3 +53,7 @@ Dependencies
 ------------
 
 Redis persistence uses the redis-client busmod "de.marx-labs.redis-client". You must deploy it yourself.
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lbovet/vertx-rest-storage/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
