@@ -236,7 +236,7 @@ public class RedisStorage implements Storage {
     }
 
     @Override
-    public void put(String path, final boolean merge, final Handler<AsyncResult<Resource>> handler) {
+    public void put(String path, final boolean merge, final long expire, final Handler<AsyncResult<Resource>> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
@@ -274,7 +274,14 @@ public class RedisStorage implements Storage {
                                     if("error".equals(event.body.getString("status")) && d.errorHandler != null) {
                                         d.errorHandler.handle(event.body.getString("message"));
                                     } else {
-                                        d.endHandler.handle(null);
+                                    	if(expire > 0) {
+	                                    	JsonObject command = new JsonObject();
+	                                    	command.putString("command", "expire");
+	                                    	command.putString("key", key);
+	                                    	command.putNumber("seconds", expire);
+	                                    	eb.send(redisAddress, command);              
+                                    	}
+                                		d.endHandler.handle(null);
                                     }
                                 }
                             });

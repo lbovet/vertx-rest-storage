@@ -26,7 +26,7 @@ public class RestStorageMod extends BusModBase {
             break;
         case "redis":
             if(config.getObject("redisConfig") != null) {
-                container.deployModule("mod-redis-io-vTEST", config.getObject("redisConfig"));
+                container.deployModule("com.jetdrone.mod-redis-io-v1.1", config.getObject("redisConfig"));
             }
             String redisAddress = config.getString("address", "redis-client");
             String redisPrefix = config.getString("root", "rest-storage");

@@ -17,6 +17,8 @@ import org.vertx.java.core.streams.Pump;
 
 public class RestStorageHandler implements Handler<HttpServerRequest> {
 
+	public static final String EXPIRE_AFTER_HEADER = "x-expire-after";
+	
     RouteMatcher routeMatcher = new RouteMatcher();
 
     MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
@@ -174,10 +176,18 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         routeMatcher.putWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 request.pause();
-                final String path = cleanPath(request.path.substring(prefix.length()));             
+                final String path = cleanPath(request.path.substring(prefix.length()));
+                long expire = -1;
+                if(request.headers().containsKey(EXPIRE_AFTER_HEADER)) {
+                	try {
+                		expire = Long.parseLong(request.headers().get(EXPIRE_AFTER_HEADER));
+                	} catch(NumberFormatException nfe) {
+                		// ignore
+                	}
+                }
                 boolean merge = (request.query != null && request.query.contains("merge=true")
                         && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
-                storage.put(path, merge, new Handler<AsyncResult<Resource>>() {
+                storage.put(path, merge, expire, new Handler<AsyncResult<Resource>>() {
                     public void handle(AsyncResult<Resource> event) {
                         Resource resource = event.result;
                         if (!resource.exists) {

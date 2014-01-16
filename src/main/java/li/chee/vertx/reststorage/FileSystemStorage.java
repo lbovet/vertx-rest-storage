@@ -97,7 +97,7 @@ public class FileSystemStorage implements Storage {
     }
 
     @Override
-    public void put(String path, boolean merge, final Handler<AsyncResult<Resource>> handler) {
+    public void put(String path, boolean merge, long expire, final Handler<AsyncResult<Resource>> handler) {
         final String fullPath = canonicalize(path);
         fileSystem().exists(fullPath, new AsyncResultHandler<Boolean>() {
             public void handle(AsyncResult<Boolean> event) {
