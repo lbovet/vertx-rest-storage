@@ -1,14 +1,14 @@
 package li.chee.vertx.reststorage;
 
-import org.vertx.java.busmods.BusModBase;
 import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.platform.Verticle;
 
-public class RestStorageMod extends BusModBase {
+public class RestStorageMod extends Verticle {
 
     @Override
     public void start() {
 
-        JsonObject config = container.getConfig();
+        JsonObject config = container.config();
 
         String storageName = config.getString("storage", "filesystem");
         int port = config.getNumber("port", 8989).intValue();
@@ -21,16 +21,16 @@ public class RestStorageMod extends BusModBase {
         switch (storageName) {
         case "filesystem":
             String root = config.getString("root", ".");
-            storage = new FileSystemStorage(root);
+            storage = new FileSystemStorage(vertx, root);
             etag = config.getString("etag", "none");
             break;
         case "redis":
             if(config.getObject("redisConfig") != null) {
-                container.deployModule("com.jetdrone.mod-redis-io-v1.1", config.getObject("redisConfig"));
+                container.deployModule("io.vertx~mod-redis~1.1.3", config.getObject("redisConfig"));
             }
             String redisAddress = config.getString("address", "redis-client");
             String redisPrefix = config.getString("root", "rest-storage");
-            storage = new RedisStorage(redisAddress, redisPrefix);
+            storage = new RedisStorage(vertx, redisAddress, redisPrefix);
             etag = config.getString("etag", "memory");
             break;
         default:

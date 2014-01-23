@@ -1,31 +1,29 @@
 package li.chee.vertx.reststorage;
 
-import java.util.HashMap;
-import java.util.Map;
+import static org.vertx.testtools.VertxAssert.testComplete;
 
+import org.junit.Test;
+import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
-import org.vertx.java.testframework.TestClientBase;
+import org.vertx.java.core.json.JsonObject;
+import org.vertx.testtools.TestVerticle;
 
-
-public class TestClient extends TestClientBase {
-
-    private EventBus eb;
+public class IntegrationTest extends TestVerticle {
 
     @Override
     public void start() {
-        super.start();
-        eb = vertx.eventBus();
-        tu.appReady();
-    }
-
-    @Override
-    public void stop() {
-        super.stop();
+        initialize();        
+        container.deployModule(System.getProperty("vertx.modulename"), 
+                new JsonObject().putString("prefix", "/test").putString("root", "dogs"), 1, new AsyncResultHandler<String>() {
+            public void handle(AsyncResult<String> event) {
+               	startTests();
+            }
+        });  
     }
 
     class PrintHandler implements Handler<HttpClientResponse> {
@@ -44,10 +42,7 @@ public class TestClient extends TestClientBase {
         }
 
         public void handle(HttpClientResponse response) {
-            System.out.println(response.statusCode);
-            Map<String, String> headers = new HashMap<>();
-            headers.putAll(response.headers());
-            System.out.println(headers);
+            System.out.println(response.statusCode());
             response.bodyHandler(new Handler<Buffer>() {
                 public void handle(Buffer body) {
                     System.out.println(body.toString());
@@ -55,7 +50,7 @@ public class TestClient extends TestClientBase {
                         next.handle(null);
                     }
                     if (complete) {
-                        tu.testComplete();
+                        testComplete();
                     }
                 }
             });
@@ -64,10 +59,11 @@ public class TestClient extends TestClientBase {
 
     HttpClient client;
     
+    @Test
     public void testSimple() {
         client = vertx.createHttpClient().setPort(8989);
         HttpClientRequest request = client.get("/test/", new PrintHandler(step2()));
-        request.headers().put("Accept", "text/html");
+        request.headers().add("Accept", "text/html");
         request.end();
     }
     
@@ -80,7 +76,7 @@ public class TestClient extends TestClientBase {
                 }
                 content.append("\"hello\": \"world\" }");
                 HttpClientRequest request = client.put("/test/hello", new PrintHandler(step3()));
-                request.headers().put("Content-Length", content.length());
+                request.headers().add("Content-Length", ""+content.length());
                 request.write(content.toString());
                 request.end();
             }            
@@ -92,7 +88,7 @@ public class TestClient extends TestClientBase {
             public void handle(Void event) {
                 String content = "{ \"hello\": \"world\" }";
                 HttpClientRequest request = client.put("/test/world", new PrintHandler(step4()));
-                request.headers().put("Content-Length", content.length());
+                request.headers().add("Content-Length", ""+content.length());
                 request.write(content);
                 request.end();
             }            

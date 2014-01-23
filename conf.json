@@ -1,0 +1,6 @@
+{
+        "storage": "redis",
+        "redisConfig" : {
+                      "address": "redis-client"
+        }
+}

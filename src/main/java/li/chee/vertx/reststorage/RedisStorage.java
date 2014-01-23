@@ -12,9 +12,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.SimpleHandler;
+import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
@@ -22,19 +21,20 @@ import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.streams.ReadStream;
 import org.vertx.java.core.streams.WriteStream;
-import org.vertx.java.deploy.impl.VertxLocator;
 
 public class RedisStorage implements Storage {
 
     private String redisAddress;
     private String redisPrefix;
     private EventBus eb;
+    private Vertx vertx;
     private String mergeScript;
     
-    public RedisStorage(String redisAddress, String redisPrefix) {
+    public RedisStorage(Vertx vertx, String redisAddress, String redisPrefix) {
         this.redisAddress = redisAddress;
         this.redisPrefix = redisPrefix;
-        eb = VertxLocator.vertx.eventBus();
+        eb = vertx.eventBus();
+        this.vertx = vertx;
         
         BufferedReader in = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("json-merge.lua")));
         StringBuilder sb;
@@ -57,7 +57,7 @@ public class RedisStorage implements Storage {
         mergeScript = sb.toString();
     }
 
-    public class ByteArrayReadStream implements ReadStream {
+    public class ByteArrayReadStream implements ReadStream<ByteArrayReadStream> {
 
         ByteArrayInputStream content;
         int size;
@@ -72,8 +72,8 @@ public class RedisStorage implements Storage {
         }
 
         private void doRead() {
-            VertxLocator.vertx.runOnLoop(new SimpleHandler() {
-                protected void handle() {
+            vertx.runOnContext(new Handler<Void>() {
+                public void handle(Void v) {
                     if (!paused) {
                         if (position < size) {
                             int toRead = 8192;
@@ -93,42 +93,48 @@ public class RedisStorage implements Storage {
             });
         }
 
-        public void resume() {
+        public ByteArrayReadStream resume() {
             paused = false;
             doRead();
+            return this;
         }
 
         @Override
-        public void pause() {
+        public ByteArrayReadStream pause() {
             paused = true;
+            return this;
         }
 
         @Override
-        public void exceptionHandler(Handler<Exception> handler) {
+        public ByteArrayReadStream exceptionHandler(Handler<Throwable> handler) {
+        	return this;
         }
 
         @Override
-        public void endHandler(Handler<Void> endHandler) {
+        public ByteArrayReadStream endHandler(Handler<Void> endHandler) {
             this.endHandler = endHandler;
+            return this;
 
         }
 
         @Override
-        public void dataHandler(Handler<Buffer> handler) {
+        public ByteArrayReadStream dataHandler(Handler<Buffer> handler) {
             this.dataHandler = handler;
             doRead();
+            return this;
         }
     }
 
     @Override
-    public void get(String path, final Handler<AsyncResult<Resource>> handler) {
+    public void get(String path, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
-        command.putString("pattern", key + "*");
+        command.putArray("args", new JsonArray().add(key + "*"));
+        System.out.println(command.toString());
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
-                JsonArray list = event.body.getArray("value");
+                JsonArray list = event.body().getArray("value");
                 if (list.size() == 0) {
                     notFound(handler);
                     return;
@@ -147,10 +153,10 @@ public class RedisStorage implements Storage {
                     }
                     JsonObject command = new JsonObject();
                     command.putString("command", "get");
-                    command.putString("key", key);
+                    command.putArray("args", new JsonArray().add(key));
                     eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                         public void handle(Message<JsonObject> event) {                            
-                            String value = event.body.getString("value");
+                            String value = event.body().getString("value");
                             if (value != null) {
                                 DocumentResource r = new DocumentResource();
                                 byte[] content = decodeBinary(value);
@@ -161,7 +167,7 @@ public class RedisStorage implements Storage {
                                         // nothing to close
                                     }                                    
                                 };
-                                handler.handle(new AsyncResult<Resource>(r));
+                                handler.handle(r);
                             } else {
                                 notFound(handler);
                             }
@@ -191,7 +197,7 @@ public class RedisStorage implements Storage {
                     if(collection) {                                  
                         r.items = new ArrayList<Resource>(items);
                         Collections.sort(r.items);
-                        handler.handle(new AsyncResult<Resource>(r));
+                        handler.handle(r);
                     } else {
                         notFound(handler);
                     }
@@ -200,7 +206,7 @@ public class RedisStorage implements Storage {
         });
     }
 
-    class ByteArrayWriteStream implements WriteStream {
+    class ByteArrayWriteStream implements WriteStream<ByteArrayWriteStream> {
 
         private ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
@@ -209,16 +215,18 @@ public class RedisStorage implements Storage {
         }
 
         @Override
-        public void writeBuffer(Buffer data) {
+        public ByteArrayWriteStream write(Buffer data) {
             try {
                 bos.write(data.getBytes());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            return this;
         }
 
         @Override
-        public void setWriteQueueMaxSize(int maxSize) {
+        public ByteArrayWriteStream setWriteQueueMaxSize(int maxSize) {
+        	return this;
         }
 
         @Override
@@ -227,23 +235,25 @@ public class RedisStorage implements Storage {
         }
 
         @Override
-        public void drainHandler(Handler<Void> handler) {
+        public ByteArrayWriteStream drainHandler(Handler<Void> handler) {
+        	return this;
         }
 
         @Override
-        public void exceptionHandler(Handler<Exception> handler) {
+        public ByteArrayWriteStream exceptionHandler(Handler<Throwable> handler) {
+        	return this;
         }
     }
 
     @Override
-    public void put(String path, final boolean merge, final long expire, final Handler<AsyncResult<Resource>> handler) {
+    public void put(String path, final boolean merge, final long expire, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
-        command.putString("pattern", key + "*");
+        command.putArray("args", new JsonArray().add(key + "*"));
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
-                JsonArray list = event.body.getArray("value");
+                JsonArray list = event.body().getArray("value");
                 boolean collection = false;
                 for (Object o : list) {
                     String subKey = ((String) o);
@@ -260,25 +270,25 @@ public class RedisStorage implements Storage {
                             JsonObject command = new JsonObject();
                             if(merge) {
                                 command.putString("command", "eval");
-                                command.putString("script", mergeScript);
-                                command.putNumber("numkeys", 1);
-                                command.putArray("key", new JsonArray( new Object[] { key }));
-                                command.putArray("arg", new JsonArray( new Object[] { encodeBinary(stream.getBytes())} ));
+                                JsonArray args = new JsonArray();
+                                args.add(mergeScript);
+                                args.add(1);
+                                args.add(key);
+                                args.add(encodeBinary(stream.getBytes()));
+                                command.putArray("args", args);
                             } else {
                                 command.putString("command", "set");
-                                command.putString("key", key);
-                                command.putString("value", encodeBinary(stream.getBytes()));
+                                command.putArray("args", new JsonArray().add(key).add(encodeBinary(stream.getBytes())));
                             }
                             eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                                 public void handle(Message<JsonObject> event) {
-                                    if("error".equals(event.body.getString("status")) && d.errorHandler != null) {
-                                        d.errorHandler.handle(event.body.getString("message"));
+                                    if("error".equals(event.body().getString("status")) && d.errorHandler != null) {
+                                        d.errorHandler.handle(event.body().getString("message"));
                                     } else {
                                     	if(expire > 0) {
 	                                    	JsonObject command = new JsonObject();
 	                                    	command.putString("command", "expire");
-	                                    	command.putString("key", key);
-	                                    	command.putNumber("seconds", expire);
+	                                    	command.putArray("args", new JsonArray().add(key).add(expire));
 	                                    	eb.send(redisAddress, command);              
                                     	}
                                 		d.endHandler.handle(null);
@@ -287,24 +297,24 @@ public class RedisStorage implements Storage {
                             });
                         }
                     };
-                    handler.handle(new AsyncResult<Resource>(d));
+                    handler.handle(d);
                 } else {
                     CollectionResource c = new CollectionResource();
-                    handler.handle(new AsyncResult<Resource>(c));
+                    handler.handle(c);
                 }
             }
         });
     }
 
     @Override
-    public void delete(String path, final Handler<AsyncResult<Resource>> handler) {
+    public void delete(String path, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
-        command.putString("pattern", key + "*");
+        command.putArray("args", new JsonArray().add(key + "*"));
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
-                JsonArray list = event.body.getArray("value");
+                JsonArray list = event.body().getArray("value");
                 if (list.size() == 0) {
                     notFound(handler);
                     return;
@@ -318,12 +328,11 @@ public class RedisStorage implements Storage {
                 }
                 JsonObject command = new JsonObject();
                 command.putString("command", "del");
-                command.putArray("keys", list);
-                command.putArray("key", list);
+                command.putArray("args", list);
                 eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                     public void handle(Message<JsonObject> event) {
                         Resource r = new Resource();
-                        handler.handle(new AsyncResult<Resource>(r));
+                        handler.handle(r);
                     }
                 });
             }
@@ -357,9 +366,9 @@ public class RedisStorage implements Storage {
         }
     }
 
-    private void notFound(Handler<AsyncResult<Resource>> handler) {
+    private void notFound(Handler<Resource> handler) {
         Resource r = new Resource();
         r.exists = false;
-        handler.handle(new AsyncResult<Resource>(r));
+        handler.handle(r);
     }
 }

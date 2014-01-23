@@ -5,10 +5,10 @@ import org.vertx.java.core.Handler;
 
 public interface Storage {
 
-    void get(String path, Handler<AsyncResult<Resource>> handler);
+    void get(String path, Handler<Resource> handler);
 
-    void put(String path, boolean merge, long expire, Handler<AsyncResult<Resource>> handler);
+    void put(String path, boolean merge, long expire, Handler<Resource> handler);
 
-    void delete(String path, Handler<AsyncResult<Resource>> handler);
+    void delete(String path, Handler<Resource> handler);
 
 }
