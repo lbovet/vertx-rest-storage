@@ -55,10 +55,11 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             String accept = request.headers().get("Accept");
                             boolean html = (accept != null && accept.contains("text/html"));
                             if (resource instanceof CollectionResource) {
-                                if (!request.uri.endsWith("/") && !request.uri.contains("/?")) {
+                                if (!request.path.endsWith("/")) {
                                     request.response.statusCode = 302;
                                     request.response.statusMessage = "Found";
-                                    request.response.headers().put("Location", request.uri + "/");
+                                    String location = request.query != null ? request.uri.replace("?"+request.query, "") + "/?"+request.query : request.uri+"/";  
+                                    request.response.headers().put("Location", location);
                                     request.response.end();
                                 } else {
                                     CollectionResource collection = (CollectionResource) resource;
