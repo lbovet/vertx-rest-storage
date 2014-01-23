@@ -6,3 +6,4 @@ mods/
 /.gradle
 /dogs
 .settings
+/bin
