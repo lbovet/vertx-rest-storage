@@ -52,8 +52,7 @@ repositories {
     // are concurrent builds
     mavenLocal()
   }
-  //maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-  maven { url 'http://archiva.pnet.ch/archiva/repository/swisspost/' }  
+  maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
   mavenCentral()
 }
 
