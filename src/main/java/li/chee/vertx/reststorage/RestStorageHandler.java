@@ -5,8 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.http.RouteMatcher;
@@ -16,37 +14,37 @@ import org.vertx.java.core.streams.Pump;
 
 public class RestStorageHandler implements Handler<HttpServerRequest> {
 
-	public static final String EXPIRE_AFTER_HEADER = "x-expire-after";
-	
+    public static final String EXPIRE_AFTER_HEADER = "x-expire-after";
+
     RouteMatcher routeMatcher = new RouteMatcher();
 
     MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
 
     Map<String, String> editors = new LinkedHashMap<>();
-    
+
     String newMarker = "?new=true";
-    
+
     public RestStorageHandler(final Storage storage, final EtagStore etagStore, final String prefix, JsonObject editorConfig) {
 
-        if(editorConfig != null) {
-            for( Entry<String, Object> entry: editorConfig.toMap().entrySet()) {
+        if (editorConfig != null) {
+            for (Entry<String, Object> entry : editorConfig.toMap().entrySet()) {
                 editors.put(entry.getKey(), entry.getValue().toString());
             }
         }
-        
+
         routeMatcher.getWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path().substring(prefix.length()));
 
                 String etag = request.headers().get("if-none-match");
                 final String resourceEtag = etagStore.get(path);
-                if(resourceEtag.equals(etag)) {                    
+                if (resourceEtag.equals(etag)) {
                     request.response().setStatusCode(304);
                     request.response().setStatusMessage("Not Modified");
                     request.response().end();
-                    return;               
+                    return;
                 }
-                
+
                 storage.get(path, new Handler<Resource>() {
                     public void handle(Resource resource) {
                         if (resource.exists) {
@@ -56,37 +54,37 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (!request.path().endsWith("/")) {
                                     request.response().setStatusCode(302);
                                     request.response().setStatusMessage("Found");
-                                    String location = request.query() != null ? request.uri().replace("?"+request.query(), "") + "/?"+request.query() : request.uri()+"/";  
+                                    String location = request.query() != null ? request.uri().replace("?" + request.query(), "") + "/?" + request.query() : request.uri() + "/";
                                     request.response().headers().add("Location", location);
                                     request.response().end();
                                 } else {
                                     CollectionResource collection = (CollectionResource) resource;
                                     String collectionName = collectionName(path);
-                                    if (html) {                                        
-                                        if(!(request.query()!=null && request.query().contains("follow=off")) &&
+                                    if (html) {
+                                        if (!(request.query() != null && request.query().contains("follow=off")) &&
                                                 collection.items.size() == 1 &&
-                                                collection.items.get(0) instanceof CollectionResource ) {
+                                                collection.items.get(0) instanceof CollectionResource) {
                                             request.response().setStatusCode(302);
                                             request.response().setStatusMessage("Found");
-                                            request.response().headers().add("Location", (request.uri())+collection.items.get(0).name);
+                                            request.response().headers().add("Location", (request.uri()) + collection.items.get(0).name);
                                             request.response().end();
                                             return;
                                         }
-                                        
+
                                         StringBuilder body = new StringBuilder();
                                         String editor = null;
-                                        if(editors.size()>0) {
+                                        if (editors.size() > 0) {
                                             editor = editors.values().iterator().next();
                                         }
                                         body.append("<!DOCTYPE html>\n");
                                         body.append("<html><head><meta charset='utf-8'/><title>" + collectionName + "</title>");
                                         body.append("<link href='//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css' rel='stylesheet'></head>");
                                         body.append("<body><div style='font-size: 2em; height:48px; border-bottom: 1px solid lightgray; color: darkgray'><div style='padding:12px;'>" + htmlPath(prefix + path) + "</div>");
-                                        if(editor != null) {                                            
-                                            String editorString=editor.replace("$path", path+(path.equals("/")? "" : "/")+"$new");
-                                            editorString=editorString.replaceFirst("\\?", newMarker);                                            
+                                        if (editor != null) {
+                                            String editorString = editor.replace("$path", path + (path.equals("/") ? "" : "/") + "$new");
+                                            editorString = editorString.replaceFirst("\\?", newMarker);
                                             body.append("<div style='position: fixed; top: 8px; right: 20px;'>" +
-                                                    "<input id='name' type='text' placeholder='New Resource\u2026' onkeydown='if (event.keyCode == 13) { if(document.getElementById(\"name\").value) {window.location=\""+editorString+"\".replace(\"$new\",document.getElementById(\"name\").value);}}'></input></div>");
+                                                    "<input id='name' type='text' placeholder='New Resource\u2026' onkeydown='if (event.keyCode == 13) { if(document.getElementById(\"name\").value) {window.location=\"" + editorString + "\".replace(\"$new\",document.getElementById(\"name\").value);}}'></input></div>");
                                         }
                                         body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"../?follow=off\">..</a></li>");
                                         List<String> sortedNames = sortedNames(collection);
@@ -95,7 +93,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                             body.append("</li>");
                                         }
                                         body.append("</ul></body></html>");
-                                        request.response().headers().add("Content-Length", ""+body.length());
+                                        request.response().headers().add("Content-Length", "" + body.length());
                                         request.response().headers().add("Content-Type", "text/html; charset=utf-8");
                                         request.response().end(body.toString());
                                     } else {
@@ -105,7 +103,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                             array.addString(name);
                                         }
                                         String body = new JsonObject().putArray(collectionName, array).encode();
-                                        request.response().headers().add("Content-Length", ""+body.length());
+                                        request.response().headers().add("Content-Length", "" + body.length());
                                         request.response().headers().add("Content-Type", "application/json; charset=utf-8");
                                         request.response().end(body);
                                     }
@@ -117,25 +115,25 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     request.response().setStatusMessage("Found");
                                     request.response().headers().add("Location", request.uri().substring(0, request.uri().length() - 1));
                                     request.response().end();
-                                } else {                                    
+                                } else {
                                     String mimeType = mimeTypeResolver.resolveMimeType(path);
-                                    if(request.headers().names().contains("Accept") && request.headers().get("Accept").contains("text/html")) {
+                                    if (request.headers().names().contains("Accept") && request.headers().get("Accept").contains("text/html")) {
                                         String editor = editors.get(mimeType.split(";")[0]);
-                                        if(editor != null) {
+                                        if (editor != null) {
                                             request.response().setStatusCode(302);
                                             request.response().setStatusMessage("Found");
                                             String editorString = editor.replaceAll("\\$path", path);
-                                            request.response().headers().add("Location", editorString);                                            
+                                            request.response().headers().add("Location", editorString);
                                             request.response().end();
                                             return;
                                         }
                                     }
-                                    
+
                                     final DocumentResource documentResource = (DocumentResource) resource;
-                                    if(resourceEtag != "") {
+                                    if (resourceEtag != "") {
                                         request.response().headers().add("Etag", resourceEtag);
                                     }
-                                    request.response().headers().add("Content-Length", ""+documentResource.length);
+                                    request.response().headers().add("Content-Length", "" + documentResource.length);
                                     request.response().headers().add("Content-Type", mimeType);
                                     final Pump pump = Pump.createPump(documentResource.readStream, request.response());
                                     documentResource.readStream.endHandler(new Handler<Void>() {
@@ -177,12 +175,12 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 request.pause();
                 final String path = cleanPath(request.path().substring(prefix.length()));
                 long expire = -1;
-                if(request.headers().names().contains(EXPIRE_AFTER_HEADER)) {
-                	try {
-                		expire = Long.parseLong(request.headers().get(EXPIRE_AFTER_HEADER));
-                	} catch(NumberFormatException nfe) {
-                		// ignore
-                	}
+                if (request.headers().contains(EXPIRE_AFTER_HEADER)) {
+                    try {
+                        expire = Long.parseLong(request.headers().get(EXPIRE_AFTER_HEADER));
+                    } catch (NumberFormatException nfe) {
+                        // ignore
+                    }
                 }
                 boolean merge = (request.query() != null && request.query().contains("merge=true")
                         && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
@@ -205,7 +203,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             request.resume();
                             final DocumentResource documentResource = (DocumentResource) resource;
                             documentResource.errorHandler = new Handler<String>() {
-                                public void handle(String error) {                                    
+                                public void handle(String error) {
                                     request.response().setStatusCode(400);
                                     request.response().setStatusMessage("Bad Request");
                                     request.response().end(error);
@@ -255,7 +253,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 request.response().end("404 Not Found");
             }
         });
-        
+
         routeMatcher.all(".*", new Handler<HttpServerRequest>() {
             public void handle(HttpServerRequest request) {
                 request.response().setStatusCode(405);
