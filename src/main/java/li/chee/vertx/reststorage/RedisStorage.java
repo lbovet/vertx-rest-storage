@@ -33,9 +33,9 @@ public class RedisStorage implements Storage {
     private int cleanupResourcesAmount;
     private EventBus eb;
     private Vertx vertx;
-    private String putScript;
-    private String getScript;
-    private String deleteScript;
+    private String putScriptSha;
+    private String getScriptSha;
+    private String deleteScriptSha;
 
     public RedisStorage(Vertx vertx, String redisAddress, String redisResourcesPrefix, String redisCollectionsPrefix, String expirableSet, int cleanupResourcesAmount) {
         this.redisAddress = redisAddress;
@@ -46,9 +46,41 @@ public class RedisStorage implements Storage {
         eb = vertx.eventBus();
         this.vertx = vertx;
 
-        putScript = readLuaScript("put.lua");
-        getScript = readLuaScript("get.lua");
-        deleteScript = readLuaScript("del.lua");
+        JsonObject command = new JsonObject();
+        command.putString("command", "script load");
+        JsonArray args = new JsonArray();
+        args.add(readLuaScript("put.lua"));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                String sha = event.body().getString("value");
+                putScriptSha = sha;
+            }
+        });
+
+        command = new JsonObject();
+        command.putString("command", "script load");
+        args = new JsonArray();
+        args.add(readLuaScript("get.lua"));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                String sha = event.body().getString("value");
+                getScriptSha = sha;
+            }
+        });
+
+        command = new JsonObject();
+        command.putString("command", "script load");
+        args = new JsonArray();
+        args.add(readLuaScript("del.lua"));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                String sha = event.body().getString("value");
+                deleteScriptSha = sha;
+            }
+        });
     }
 
     private String readLuaScript(String script) {
@@ -145,9 +177,9 @@ public class RedisStorage implements Storage {
     public void get(String path, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
-        command.putString("command", "eval");
+        command.putString("command", "evalsha");
         JsonArray args = new JsonArray();
-        args.add(getScript);
+        args.add(getScriptSha);
         args.add(1);
         args.add(key);
         args.add(redisResourcesPrefix);
@@ -264,9 +296,9 @@ public class RedisStorage implements Storage {
                                 expireInMillis = MAX_EXPIRE_IN_MILLIS;
                             }
                             JsonObject command = new JsonObject();
-                            command.putString("command", "eval");
+                            command.putString("command", "evalsha");
                             JsonArray args = new JsonArray();
-                            args.add(putScript);
+                            args.add(putScriptSha);
                             args.add(1);
                             args.add(key);
                             args.add(redisResourcesPrefix);
@@ -304,9 +336,9 @@ public class RedisStorage implements Storage {
     public void delete(String path, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
-        command.putString("command", "eval");
+        command.putString("command", "evalsha");
         JsonArray args = new JsonArray();
-        args.add(deleteScript);
+        args.add(deleteScriptSha);
         args.add(1);
         args.add(key);
         args.add(redisResourcesPrefix);
@@ -365,9 +397,9 @@ public class RedisStorage implements Storage {
                     eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                         public void handle(Message<JsonObject> event) {
                             JsonObject command = new JsonObject();
-                            command.putString("command", "eval");
+                            command.putString("command", "evalsha");
                             JsonArray args = new JsonArray();
-                            args.add(deleteScript);
+                            args.add(deleteScriptSha);
                             args.add(1);
                             args.add(resourceToRemove);
                             args.add(redisResourcesPrefix);
