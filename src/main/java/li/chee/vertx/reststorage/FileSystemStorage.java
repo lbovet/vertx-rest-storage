@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.UUID;
-
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
@@ -18,9 +17,9 @@ public class FileSystemStorage implements Storage {
 
     private String root;
     private Vertx vertx;
-    
+
     public FileSystemStorage(Vertx vertx, String root) {
-    	this.vertx = vertx;
+        this.vertx = vertx;
         this.root = root;
     }
 
@@ -39,18 +38,18 @@ public class FileSystemStorage implements Storage {
                                         final int length = event.result().length;
                                         final CollectionResource c = new CollectionResource();
                                         c.items = new ArrayList<Resource>(length);
-                                        if(length == 0) {
+                                        if (length == 0) {
                                             handler.handle(c);
                                             return;
                                         }
-                                        final int dirLength = fullPath.length();                                        
+                                        final int dirLength = fullPath.length();
                                         for (final String item : event.result()) {
                                             fileSystem().props(item, new AsyncResultHandler<FileProps>() {
                                                 public void handle(AsyncResult<FileProps> itemProp) {
                                                     Resource r;
-                                                    if(itemProp.result().isDirectory()) {
-                                                        r = new CollectionResource();                                                        
-                                                    } else if (itemProp.result().isRegularFile()){
+                                                    if (itemProp.result().isDirectory()) {
+                                                        r = new CollectionResource();
+                                                    } else if (itemProp.result().isRegularFile()) {
                                                         r = new DocumentResource();
                                                     } else {
                                                         r = new Resource();
@@ -58,13 +57,13 @@ public class FileSystemStorage implements Storage {
                                                     }
                                                     r.name = item.substring(dirLength + 1);
                                                     c.items.add(r);
-                                                    if(c.items.size() == length) {
+                                                    if (c.items.size() == length) {
                                                         Collections.sort(c.items);
                                                         handler.handle(c);
                                                     }
                                                 }
-                                            });                                            
-                                        }                                        
+                                            });
+                                        }
                                     }
                                 });
                             } else if (props.isRegularFile()) {
@@ -149,7 +148,7 @@ public class FileSystemStorage implements Storage {
                         public void handle(Void v) {
                             event.result().close(new AsyncResultHandler<Void>() {
                                 public void handle(AsyncResult<Void> event) {
-                                    fileSystem().delete(fullPath, new AsyncResultHandler<Void>() {                                        
+                                    fileSystem().delete(fullPath, new AsyncResultHandler<Void>() {
                                         public void handle(AsyncResult<Void> event) {
                                             fileSystem().move(tempFile, fullPath, new AsyncResultHandler<Void>() {
                                                 public void handle(AsyncResult<Void> event) {
@@ -174,14 +173,14 @@ public class FileSystemStorage implements Storage {
 
     @Override
     public void delete(String path, final Handler<Resource> handler) {
-        final String fullPath = canonicalize(path);        
+        final String fullPath = canonicalize(path);
         fileSystem().exists(fullPath, new AsyncResultHandler<Boolean>() {
-            public void handle(AsyncResult<Boolean> event) {                
+            public void handle(AsyncResult<Boolean> event) {
                 if (event.result()) {
                     fileSystem().delete(fullPath, true, new AsyncResultHandler<Void>() {
                         public void handle(AsyncResult<Void> event) {
                             Resource resource = new Resource();
-                            if(event.failed()) {
+                            if (event.failed()) {
                                 resource.exists = false;
                             }
                             handler.handle(resource);
@@ -210,5 +209,10 @@ public class FileSystemStorage implements Storage {
 
     private FileSystem fileSystem() {
         return vertx.fileSystem();
+    }
+
+    @Override
+    public void cleanup(Handler<DocumentResource> handler) {
+        // nothing to do here
     }
 }

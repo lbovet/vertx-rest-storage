@@ -1,20 +1,23 @@
 local sep = ":";
 local resourcesPrefix = ARGV[1]
 local collectionsPrefix = ARGV[2]
+local expirableSet = ARGV[3]
 local minscore = 0
 local maxscore = 9999999999999
 
-local function deleteChildren(path)
+local function deleteChildrenAndItself(path)
     local isCollection = redis.call('exists',collectionsPrefix..path)
     local isResource = redis.call('exists',resourcesPrefix..path)
 	if isCollection == 1 then
 		local members = redis.call('zrangebyscore',collectionsPrefix..path,minscore,maxscore)
 	 	for key,value in pairs(members) do
 	 		local pathToDelete = path..":"..value
-	 		deleteChildren(pathToDelete)
+	 		deleteChildrenAndItself(pathToDelete)
 	 		redis.call('del', collectionsPrefix..path)
 	 	end
 	elseif isResource == 1 then
+		redis.log(redis.LOG_NOTICE, "del: "..resourcesPrefix..path)
+		redis.call('zrem', expirableSet, resourcesPrefix..path)
 		redis.call('del', resourcesPrefix..path)
 	else
 		redis.log(redis.LOG_WARNING, "can't delete resource from type: "..path)
@@ -33,7 +36,7 @@ if exists == 0 then
 end
 
 -- REMOVE THE CHILDREN
-deleteChildren(KEYS[1])
+deleteChildrenAndItself(KEYS[1])
 
 -- REMOVE THE ORPHAN PARENTS
 local path = KEYS[1]..sep

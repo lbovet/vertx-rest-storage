@@ -130,7 +130,6 @@ public class RedisStorageOld implements Storage {
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
         command.putArray("args", new JsonArray().add(key + "*"));
-        System.out.println(command);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
                 JsonArray list = event.body().getArray("value");
@@ -153,7 +152,6 @@ public class RedisStorageOld implements Storage {
                     JsonObject command = new JsonObject();
                     command.putString("command", "get");
                     command.putArray("args", new JsonArray().add(key));
-                    System.out.println(command);
                     eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                         public void handle(Message<JsonObject> event) {
                             String value = event.body().getString("value");
@@ -251,7 +249,6 @@ public class RedisStorageOld implements Storage {
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
         command.putArray("args", new JsonArray().add(key + "*"));
-        System.out.println(command);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
                 JsonArray list = event.body().getArray("value");
@@ -277,13 +274,10 @@ public class RedisStorageOld implements Storage {
                                 args.add(key);
                                 args.add(encodeBinary(stream.getBytes()));
                                 command.putArray("args", args);
-                                System.out.println(command);
                             } else {
                                 command.putString("command", "set");
                                 command.putArray("args", new JsonArray().add(key).add(encodeBinary(stream.getBytes())));
-                                System.out.println(command);
                             }
-                            System.out.println(command);
                             eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                                 public void handle(Message<JsonObject> event) {
                                     if ("error".equals(event.body().getString("status")) && d.errorHandler != null) {
@@ -293,7 +287,6 @@ public class RedisStorageOld implements Storage {
                                             JsonObject command = new JsonObject();
                                             command.putString("command", "expire");
                                             command.putArray("args", new JsonArray().add(key).add(expire));
-                                            System.out.println(command);
                                             eb.send(redisAddress, command);
                                         }
                                         d.endHandler.handle(null);
@@ -317,7 +310,6 @@ public class RedisStorageOld implements Storage {
         JsonObject command = new JsonObject();
         command.putString("command", "keys");
         command.putArray("args", new JsonArray().add(key + "*"));
-        System.out.println(command);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
                 JsonArray list = event.body().getArray("value");
@@ -335,7 +327,6 @@ public class RedisStorageOld implements Storage {
                 JsonObject command = new JsonObject();
                 command.putString("command", "del");
                 command.putArray("args", list);
-                System.out.println(command);
                 eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                     public void handle(Message<JsonObject> event) {
                         Resource r = new Resource();
@@ -377,5 +368,10 @@ public class RedisStorageOld implements Storage {
         Resource r = new Resource();
         r.exists = false;
         handler.handle(r);
+    }
+
+    @Override
+    public void cleanup(Handler<DocumentResource> handler) {
+        // nothing to do here
     }
 }

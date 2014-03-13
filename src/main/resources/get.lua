@@ -1,12 +1,19 @@
 local sep = ":"
 local path = KEYS[1]
+local parentPathElement
 local resourcesPrefix = ARGV[1]
 local collectionsPrefix = ARGV[2]
-local timestamp = tonumber(ARGV[3])
-local maxtime = tonumber(ARGV[4])
+local expirableSet = ARGV[3]
+local timestamp = tonumber(ARGV[4])
+local maxtime = tonumber(ARGV[5])
 
 if redis.call('exists',resourcesPrefix..path) == 1 then
-	return redis.call('get',resourcesPrefix..path)
+	local score = tonumber(redis.call('zscore',expirableSet,resourcesPrefix..path))
+	if score == nil or score < timestamp then
+		return "notFound"
+	else
+		return redis.call('get',resourcesPrefix..path)	
+	end
 elseif redis.call('exists',collectionsPrefix..path) == 1 then
 	local members = redis.call('zrangebyscore',collectionsPrefix..path, timestamp, maxtime)
 	local children = {}

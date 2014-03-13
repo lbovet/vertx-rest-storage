@@ -2,9 +2,10 @@ local sep = ":";
 local path = KEYS[1]..sep
 local resourcesPrefix = ARGV[1]
 local collectionsPrefix = ARGV[2]
-local merge = ARGV[3]
-local timestamp = tonumber(ARGV[4])
-local resourceValue = ARGV[5]
+local expirableSet = ARGV[3]
+local merge = ARGV[4]
+local expiration = tonumber(ARGV[5])
+local resourceValue = ARGV[6]
 local pathState
 local collections = {}
 local nodes = {path:match((path:gsub("[^"..sep.."]*"..sep, "([^"..sep.."]*)"..sep)))}
@@ -18,7 +19,7 @@ for key,value in pairs(nodes) do
 end
 for key,value in pairs(collections) do
 	local collectionKey = collectionsPrefix..key
-    redis.call('zadd',collectionKey,timestamp,value)
+    redis.call('zadd',collectionKey,expiration,value)
 end
 if merge == "true" then
 	local s = redis.call('get',resourcesPrefix..KEYS[1])
@@ -31,3 +32,4 @@ if merge == "true" then
 	end
 end
 redis.call('set',resourcesPrefix..KEYS[1],resourceValue) 
+redis.call('zadd',expirableSet,expiration,resourcesPrefix..KEYS[1])

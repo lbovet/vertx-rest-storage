@@ -29,9 +29,12 @@ public class RestStorageMod extends Verticle {
                 container.deployModule("io.vertx~mod-redis~1.1.3", config.getObject("redisConfig"));
             }
             String redisAddress = config.getString("address", "redis-client");
-            String redisResourcesPrefix = config.getString("root", "rest-storage:resources");
-            String redisCollectionsPrefix = config.getString("root", "rest-storage:collections");
-            storage = new RedisStorage(vertx, redisAddress, redisResourcesPrefix, redisCollectionsPrefix);
+            String redisResourcesPrefix = config.getString("resources_prefix", "rest-storage:resources");
+            String redisCollectionsPrefix = config.getString("collections_prefix", "rest-storage:collections");
+            String expirableSet = config.getString("expirable_prefix", "rest-storage:expirable");
+            Integer cleanupResourcesAmount = config.getInteger("resource_cleanup_amount", 10);
+            storage = new RedisStorage(vertx, redisAddress, redisResourcesPrefix, redisCollectionsPrefix, expirableSet, cleanupResourcesAmount);
+            // storage = new RedisStorage(vertx, redisAddress, redisPrefix);
             etag = config.getString("etag", "memory");
             break;
         default:
