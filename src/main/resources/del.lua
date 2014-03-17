@@ -6,37 +6,34 @@ local minscore = 0
 local maxscore = tonumber(ARGV[4])
 
 local function deleteChildrenAndItself(path)
-    local isCollection = redis.call('exists',collectionsPrefix..path)
-    local isResource = redis.call('exists',resourcesPrefix..path)
-	if isCollection == 1 then
-		local members = redis.call('zrangebyscore',collectionsPrefix..path,minscore,maxscore)
-	 	for key,value in pairs(members) do
-	 		local pathToDelete = path..":"..value
-	 		deleteChildrenAndItself(pathToDelete)
-	 		redis.call('del', collectionsPrefix..path)
-	 	end
-	elseif isResource == 1 then
-		--redis.log(redis.LOG_NOTICE, "del: "..resourcesPrefix..path)
-		redis.call('zrem', expirableSet, resourcesPrefix..path)
-		redis.call('del', resourcesPrefix..path)
-	else
-		redis.log(redis.LOG_WARNING, "can't delete resource from type: "..path)
-	end
+  	if redis.call('exists',resourcesPrefix..path) == 1 then
+      --redis.log(redis.LOG_NOTICE, "del: "..resourcesPrefix..path)
+      redis.call('zrem', expirableSet, resourcesPrefix..path)
+      redis.call('del', resourcesPrefix..path)
+  	elseif redis.call('exists',collectionsPrefix..path) == 1 then
+  		local members = redis.call('zrangebyscore',collectionsPrefix..path,minscore,maxscore)
+  	 	for key,value in pairs(members) do
+  	 		local pathToDelete = path..":"..value
+  	 		deleteChildrenAndItself(pathToDelete)
+  	 		redis.call('del', collectionsPrefix..path)
+  	 	end
+  	else
+  		redis.log(redis.LOG_WARNING, "can't delete resource from type: "..path)
+  	end
 end
 
--- CHECK OCCURENCE AND DELETE ITSELF
-local exists = 0
-if redis.call('exists',resourcesPrefix..KEYS[1]) == 1 then
-	exists = 1
-elseif redis.call('exists',collectionsPrefix..KEYS[1]) == 1 then
-	exists = 1
-end
-if exists == 0 then
-   	return "notFound"
+-- CHECK OCCURENCE
+if redis.call('exists',resourcesPrefix..KEYS[1]) == 0 and redis.call('exists',collectionsPrefix..KEYS[1]) == 0 then
+ 	return "notFound"
 end
 
 -- REMOVE THE CHILDREN
 deleteChildrenAndItself(KEYS[1])
+
+if redis.call('zcount', collectionsPrefix..KEYS[1],minscore,maxscore) > 0 then
+  return "deleted"
+end
+
 
 -- REMOVE THE ORPHAN PARENTS
 local path = KEYS[1]..sep

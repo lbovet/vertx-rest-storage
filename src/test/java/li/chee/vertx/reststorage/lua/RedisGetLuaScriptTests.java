@@ -1,4 +1,4 @@
-package li.chee.vertx.reststorage;
+package li.chee.vertx.reststorage.lua;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -71,6 +71,20 @@ public class RedisGetLuaScriptTests {
 
         // ASSERT
         assertThat(values.get(0), equalTo("test1:"));
+    }
+
+    @Test
+    public void getResourcePathDepthIs3WithSiblingsFolderAndDocument() {
+
+        // ARRANGE
+        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":nemo:server:test:test1", "{\"content\": \"test/test1\"}");
+
+        // ACT
+        String value = (String) evalScriptGet(":nemo:server:test:test1");
+
+        // ASSERT
+        assertThat(value, equalTo("{\"content\": \"test/test1\"}"));
     }
 
     // EXPIRATION

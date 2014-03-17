@@ -1,13 +1,11 @@
-package li.chee.vertx.reststorage;
+package li.chee.vertx.reststorage.lua;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,47 +60,19 @@ public class RedisPutLuaScriptTests {
     }
 
     @Test
-    public void getResourcePathDepthIs3() {
+    public void putResourcePathDepthIs3WithSiblingsFolderAndDocument() {
 
-        // ARRANGE
+        // ACT
         evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-
-        // ACT
-        String value = (String) evalScriptGet(":nemo:server:test:test1:test2");
+        evalScriptPut(":nemo:server:test:test1", "{\"content\": \"test/test1\"}");
 
         // ASSERT
-        assertThat("{\"content\": \"test/test1/test2\"}", equalTo(value));
-    }
-
-    @Test
-    public void getResourcePathDepthIs3ParentOfResourceIsExpired() throws InterruptedException {
-
-        // ARRANGE
-        String now = String.valueOf(System.currentTimeMillis());
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
-        Thread.sleep(10);
-
-        // ACT
-        List<String> values = (List<String>) evalScriptGet(":nemo:server:test:test1");
-
-        // ASSERT
-        assertTrue(values.isEmpty());
-    }
-
-    @Test
-    public void getResourcePathDepthIs3ResourceIsExpired() throws InterruptedException {
-
-        // ARRANGE
-        String now = String.valueOf(System.currentTimeMillis());
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
-        Thread.sleep(10);
-
-        // ACT
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        String value = (String) evalScriptGet(":nemo:server:test:test1:test2", timestamp);
-
-        // ASSERT
-        assertThat(value, equalTo("notFound"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).iterator().next(), equalTo("server"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test1"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).iterator().next(), equalTo("test2"));
+        assertThat(jedis.get("rest-storage:resources:nemo:server:test:test1:test2"), equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(jedis.get("rest-storage:resources:nemo:server:test:test1"), equalTo("{\"content\": \"test/test1\"}"));
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })

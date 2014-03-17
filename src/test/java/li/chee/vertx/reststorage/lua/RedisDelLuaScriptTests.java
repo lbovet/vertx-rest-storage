@@ -1,4 +1,4 @@
-package li.chee.vertx.reststorage;
+package li.chee.vertx.reststorage.lua;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -129,6 +129,24 @@ public class RedisDelLuaScriptTests {
         assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test2"), equalTo(false));
         assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
         assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test22"), equalTo(false));
+    }
+
+    @Test
+    public void deleteResourcePathDepthIs3WithSiblingsFolderAndDocument() {
+
+        // ARRANGE
+        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":nemo:server:test:test1", "{\"content\": \"test/test1\"}");
+
+        // ACT
+        evalScriptDel(":nemo:server:test:test1");
+
+        // ASSERT
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).iterator().next(), equalTo("server"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test1"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).iterator().next(), equalTo("test2"));
+        assertThat(jedis.get("rest-storage:resources:nemo:server:test:test1:test2"), equalTo("{\"content\": \"test/test1/test2\"}"));
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
