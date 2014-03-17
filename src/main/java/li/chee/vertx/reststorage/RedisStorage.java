@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
@@ -24,28 +23,77 @@ import org.vertx.java.core.streams.WriteStream;
 
 public class RedisStorage implements Storage {
 
+    // set to very high value = Sat Nov 20 2286 17:46:39
+    private static final String MAX_EXPIRE_IN_MILLIS = "9999999999999";
+
     private String redisAddress;
-    private String redisPrefix;
+    private String redisResourcesPrefix;
+    private String redisCollectionsPrefix;
+    private String expirableSet;
+    private int cleanupResourcesAmount;
     private EventBus eb;
     private Vertx vertx;
-    private String mergeScript;
-    
-    public RedisStorage(Vertx vertx, String redisAddress, String redisPrefix) {
+    private String putScriptSha;
+    private String getScriptSha;
+    private String deleteScriptSha;
+
+    public RedisStorage(Vertx vertx, String redisAddress, String redisResourcesPrefix, String redisCollectionsPrefix, String expirableSet, int cleanupResourcesAmount) {
         this.redisAddress = redisAddress;
-        this.redisPrefix = redisPrefix;
+        this.expirableSet = expirableSet;
+        this.redisResourcesPrefix = redisResourcesPrefix;
+        this.redisCollectionsPrefix = redisCollectionsPrefix;
+        this.cleanupResourcesAmount = cleanupResourcesAmount;
         eb = vertx.eventBus();
         this.vertx = vertx;
-        
-        BufferedReader in = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("json-merge.lua")));
+
+        JsonObject command = new JsonObject();
+        command.putString("command", "script load");
+        JsonArray args = new JsonArray();
+        args.add(readLuaScript("put.lua"));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                String sha = event.body().getString("value");
+                putScriptSha = sha;
+            }
+        });
+
+        command = new JsonObject();
+        command.putString("command", "script load");
+        args = new JsonArray();
+        args.add(readLuaScript("get.lua"));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                String sha = event.body().getString("value");
+                getScriptSha = sha;
+            }
+        });
+
+        command = new JsonObject();
+        command.putString("command", "script load");
+        args = new JsonArray();
+        args.add(readLuaScript("del.lua"));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                String sha = event.body().getString("value");
+                deleteScriptSha = sha;
+            }
+        });
+    }
+
+    private String readLuaScript(String script) {
+        BufferedReader in = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream(script)));
         StringBuilder sb;
-        try {            
+        try {
             sb = new StringBuilder();
             String line;
-            while( (line = in.readLine()) != null ) {
-                sb.append(line+"\n");
+            while ((line = in.readLine()) != null) {
+                sb.append(line + "\n");
             }
-            
-        } catch (IOException e) {            
+
+        } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
             try {
@@ -54,7 +102,7 @@ public class RedisStorage implements Storage {
                 // Ignore
             }
         }
-        mergeScript = sb.toString();
+        return sb.toString();
     }
 
     public class ByteArrayReadStream implements ReadStream<ByteArrayReadStream> {
@@ -107,7 +155,7 @@ public class RedisStorage implements Storage {
 
         @Override
         public ByteArrayReadStream exceptionHandler(Handler<Throwable> handler) {
-        	return this;
+            return this;
         }
 
         @Override
@@ -129,79 +177,58 @@ public class RedisStorage implements Storage {
     public void get(String path, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
-        command.putString("command", "keys");
-        command.putArray("args", new JsonArray().add(key + "*"));
+        command.putString("command", "evalsha");
+        JsonArray args = new JsonArray();
+        args.add(getScriptSha);
+        args.add(1);
+        args.add(key);
+        args.add(redisResourcesPrefix);
+        args.add(redisCollectionsPrefix);
+        args.add(expirableSet);
+        args.add(String.valueOf(System.currentTimeMillis()));
+        args.add(MAX_EXPIRE_IN_MILLIS);
+        command.putArray("args", args);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
-                JsonArray list = event.body().getArray("value");
-                if (list.size() == 0) {
+                Object value = event.body().getField("value");
+                if ("notFound".equals(value)) {
                     notFound(handler);
-                    return;
-                }
-                boolean collection = false;
-                for (Object o : list) {
-                    String subKey = ((String) o);
-                    if(subKey.startsWith(key+":")) {
-                        collection=true;
-                    }
-                }
-                if (!collection) { // Document
-                    if(!list.contains(key)) {
-                        notFound(handler);
-                        return;
-                    }
-                    JsonObject command = new JsonObject();
-                    command.putString("command", "get");
-                    command.putArray("args", new JsonArray().add(key));
-                    eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
-                        public void handle(Message<JsonObject> event) {                            
-                            String value = event.body().getString("value");
-                            if (value != null) {
-                                DocumentResource r = new DocumentResource();
-                                byte[] content = decodeBinary(value);
-                                r.readStream = new ByteArrayReadStream(content);
-                                r.length = content.length;
-                                r.closeHandler = new Handler<Void>() {
-                                    public void handle(Void event) {
-                                        // nothing to close
-                                    }                                    
-                                };
-                                handler.handle(r);
-                            } else {
-                                notFound(handler);
-                            }
+                } else if (value instanceof String) {
+                    String valueStr = (String) value;
+                    DocumentResource r = new DocumentResource();
+                    byte[] content = decodeBinary(valueStr);
+                    r.readStream = new ByteArrayReadStream(content);
+                    r.length = content.length;
+                    r.closeHandler = new Handler<Void>() {
+                        public void handle(Void event) {
+                            // nothing to close
                         }
-                    });
-                    return;
-                } else { // Collection
+                    };
+                    handler.handle(r);
+                } else if (value instanceof JsonArray) {
                     CollectionResource r = new CollectionResource();
+                    JsonArray valueList = (JsonArray) value;
                     Set<Resource> items = new HashSet<>();
-                    for (Object o : list) {
-                        String subKey = (String)o;
-                        // skip bogous parent collections that are also documents and non-children
-                        if(subKey.equals(key) || subKey.charAt(key.length()) != ':') {
-                            continue;
-                        }
-                        String subPath = decodePath(subKey).substring(decodePath(key).length()+1);
-                        if (subPath.contains("/")) {
+                    Iterator<Object> iterator = valueList.iterator();
+                    while (iterator.hasNext()) {
+                        String member = (String) iterator.next();
+                        if (member.endsWith(":")) {
+                            member = member.replaceAll(":$", "");
                             CollectionResource c = new CollectionResource();
-                            c.name = subPath.split("/")[0];
+                            c.name = member;
                             items.add(c);
                         } else {
                             DocumentResource d = new DocumentResource();
-                            d.name = subPath;
+                            d.name = member;
                             items.add(d);
                         }
-                    }                    
-                    if(collection) {                                  
-                        r.items = new ArrayList<Resource>(items);
-                        Collections.sort(r.items);
-                        handler.handle(r);
-                    } else {
-                        notFound(handler);
                     }
+                    r.items = new ArrayList<Resource>(items);
+                    Collections.sort(r.items);
+                    handler.handle(r);
                 }
             }
+
         });
     }
 
@@ -225,7 +252,7 @@ public class RedisStorage implements Storage {
 
         @Override
         public ByteArrayWriteStream setWriteQueueMaxSize(int maxSize) {
-        	return this;
+            return this;
         }
 
         @Override
@@ -235,12 +262,12 @@ public class RedisStorage implements Storage {
 
         @Override
         public ByteArrayWriteStream drainHandler(Handler<Void> handler) {
-        	return this;
+            return this;
         }
 
         @Override
         public ByteArrayWriteStream exceptionHandler(Handler<Throwable> handler) {
-        	return this;
+            return this;
         }
     }
 
@@ -248,105 +275,189 @@ public class RedisStorage implements Storage {
     public void put(String path, final boolean merge, final long expire, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
-        command.putString("command", "keys");
-        command.putArray("args", new JsonArray().add(key + "*"));
+        command.putString("command", "type");
+        command.putArray("args", new JsonArray().add(key));
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
-                JsonArray list = event.body().getArray("value");
-                boolean collection = false;
-                for (Object o : list) {
-                    String subKey = ((String) o);
-                    if (subKey.startsWith(key + ":")) {
-                        collection = true;
-                    }
-                }
-                if (!collection) {
+                String type = event.body().getString("value");
+                if ("zset".equals(type)) {
+                    CollectionResource c = new CollectionResource();
+                    handler.handle(c);
+                } else {
                     final DocumentResource d = new DocumentResource();
                     final ByteArrayWriteStream stream = new ByteArrayWriteStream();
                     d.writeStream = stream;
                     d.closeHandler = new Handler<Void>() {
                         public void handle(Void event) {
-                            JsonObject command = new JsonObject();
-                            if(merge) {
-                                command.putString("command", "eval");
-                                JsonArray args = new JsonArray();
-                                args.add(mergeScript);
-                                args.add(1);
-                                args.add(key);
-                                args.add(encodeBinary(stream.getBytes()));
-                                command.putArray("args", args);
+                            String expireInMillis;
+                            if (expire > -1) {
+                                expireInMillis = String.valueOf(System.currentTimeMillis() + (expire * 1000));
                             } else {
-                                command.putString("command", "set");
-                                command.putArray("args", new JsonArray().add(key).add(encodeBinary(stream.getBytes())));
+                                expireInMillis = MAX_EXPIRE_IN_MILLIS;
                             }
+                            JsonObject command = new JsonObject();
+                            command.putString("command", "evalsha");
+                            JsonArray args = new JsonArray();
+                            args.add(putScriptSha);
+                            args.add(1);
+                            args.add(key);
+                            args.add(redisResourcesPrefix);
+                            args.add(redisCollectionsPrefix);
+                            args.add(expirableSet);
+                            args.add(merge == true ? "true" : "false");
+                            args.add(expireInMillis);
+                            args.add(encodeBinary(stream.getBytes()));
+                            command.putArray("args", args);
                             eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                                 public void handle(Message<JsonObject> event) {
-                                    if("error".equals(event.body().getString("status")) && d.errorHandler != null) {
+                                    if ("error".equals(event.body().getString("status")) && d.errorHandler != null) {
                                         d.errorHandler.handle(event.body().getString("message"));
                                     } else {
-                                    	if(expire > 0) {
-	                                    	JsonObject command = new JsonObject();
-	                                    	command.putString("command", "expire");
-	                                    	command.putArray("args", new JsonArray().add(key).add(expire));
-	                                    	eb.send(redisAddress, command);              
-                                    	}
-                                		d.endHandler.handle(null);
+                                        if (expire > 0) {
+                                            JsonObject command = new JsonObject();
+                                            command.putString("command", "expire");
+                                            command.putArray("args", new JsonArray().add(key).add(expire));
+                                            eb.send(redisAddress, command);
+                                        }
+                                        d.endHandler.handle(null);
                                     }
                                 }
                             });
                         }
                     };
                     handler.handle(d);
-                } else {
-                    CollectionResource c = new CollectionResource();
-                    handler.handle(c);
                 }
             }
         });
+
     }
 
     @Override
     public void delete(String path, final Handler<Resource> handler) {
         final String key = encodePath(path);
         JsonObject command = new JsonObject();
-        command.putString("command", "keys");
-        command.putArray("args", new JsonArray().add(key + "*"));
+        command.putString("command", "evalsha");
+        JsonArray args = new JsonArray();
+        args.add(deleteScriptSha);
+        args.add(1);
+        args.add(key);
+        args.add(redisResourcesPrefix);
+        args.add(redisCollectionsPrefix);
+        args.add(expirableSet);
+        args.add(MAX_EXPIRE_IN_MILLIS);
+        command.putArray("args", args);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
-                JsonArray list = event.body().getArray("value");
-                if (list.size() == 0) {
+                String result = event.body().getString("value");
+                if ("notFound".equals(result)) {
                     notFound(handler);
                     return;
                 }
-                Iterator<Object> it = list.iterator();
-                while(it.hasNext()) {
-                    String item = (String)it.next(); 
-                    if(!item.equals(key) && item.charAt(key.length()) != ':') {
-                        it.remove();
-                    }
+                Resource r = new Resource();
+                handler.handle(r);
+            }
+        });
+    }
+
+    public void cleanupRecursive(final Handler<DocumentResource> handler, final int cleaned, final int maxdel) {
+        JsonObject command = new JsonObject();
+        command.putString("command", "zrangebyscore");
+        JsonArray args = new JsonArray();
+        args.add(expirableSet);
+        args.add(0);
+        args.add(String.valueOf(System.currentTimeMillis()));
+        command.putArray("args", args);
+        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+            public void handle(Message<JsonObject> event) {
+                JsonArray result = event.body().getArray("value");
+                if (result == null || result.size() == 0) {
+                    JsonObject retObj = new JsonObject();
+                    retObj.putString("cleanedResources", String.valueOf(cleaned));
+                    retObj.putString("expiredResourcesLeft", "0");
+                    DocumentResource r = new DocumentResource();
+                    byte[] content = decodeBinary(retObj.toString());
+                    r.readStream = new ByteArrayReadStream(content);
+                    r.length = content.length;
+                    r.closeHandler = new Handler<Void>() {
+                        public void handle(Void event) {
+                            // nothing to close
+                        }
+                    };
+                    handler.handle(r);
+                } else {
+                    String resourceToRemoveWithPrefix = result.get(0);
+                    final String resourceToRemove = resourceToRemoveWithPrefix.replaceFirst(redisResourcesPrefix, "");
+                    JsonObject command = new JsonObject();
+                    command.putString("command", "zrem");
+                    JsonArray args = new JsonArray();
+                    args.add(expirableSet);
+                    args.add(1);
+                    args.add(resourceToRemoveWithPrefix);
+                    args.add(String.valueOf(System.currentTimeMillis()));
+                    command.putArray("args", args);
+                    eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+                        public void handle(Message<JsonObject> event) {
+                            JsonObject command = new JsonObject();
+                            command.putString("command", "evalsha");
+                            JsonArray args = new JsonArray();
+                            args.add(deleteScriptSha);
+                            args.add(1);
+                            args.add(resourceToRemove);
+                            args.add(redisResourcesPrefix);
+                            args.add(redisCollectionsPrefix);
+                            args.add(expirableSet);
+                            command.putArray("args", args);
+                            eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+                                public void handle(Message<JsonObject> event) {
+                                    if (cleaned < maxdel) {
+                                        int nextclean = cleaned;
+                                        nextclean++;
+                                        cleanupRecursive(handler, nextclean, maxdel);
+                                    } else {
+                                        JsonObject command = new JsonObject();
+                                        command.putString("command", "zrangebyscore");
+                                        JsonArray args = new JsonArray();
+                                        args.add(expirableSet);
+                                        args.add(0);
+                                        args.add(String.valueOf(System.currentTimeMillis()));
+                                        command.putArray("args", args);
+                                        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+                                            public void handle(Message<JsonObject> event) {
+                                                JsonArray result = event.body().getArray("value");
+                                                int resToCleanLeft = 0;
+                                                if (result != null && result.size() >= 0) {
+                                                    resToCleanLeft = result.size();
+                                                }
+                                                JsonObject retObj = new JsonObject();
+                                                retObj.putString("cleanedResources", String.valueOf(cleaned));
+                                                retObj.putString("expiredResourcesLeft", String.valueOf(resToCleanLeft));
+                                                DocumentResource r = new DocumentResource();
+                                                byte[] content = decodeBinary(retObj.toString());
+                                                r.readStream = new ByteArrayReadStream(content);
+                                                r.length = content.length;
+                                                r.closeHandler = new Handler<Void>() {
+                                                    public void handle(Void event) {
+                                                        // nothing to close
+                                                    }
+                                                };
+                                                handler.handle(r);
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    });
                 }
-                JsonObject command = new JsonObject();
-                command.putString("command", "del");
-                command.putArray("args", list);
-                eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
-                    public void handle(Message<JsonObject> event) {
-                        Resource r = new Resource();
-                        handler.handle(r);
-                    }
-                });
             }
         });
     }
 
     private String encodePath(String path) {
-        if(path.equals("/")) {
-            path="";
+        if (path.equals("/")) {
+            path = "";
         }
-        return redisPrefix + path.replaceAll(":", "§").replaceAll("/", ":");
-    }
-
-    private String decodePath(String key) {
-        return key.replaceAll(":", "/").replaceAll("§", ":").substring(redisPrefix.length());
+        return path.replaceAll(":", "§").replaceAll("/", ":");
     }
 
     private String encodeBinary(byte[] bytes) {
@@ -370,4 +481,10 @@ public class RedisStorage implements Storage {
         r.exists = false;
         handler.handle(r);
     }
+
+    @Override
+    public void cleanup(Handler<DocumentResource> handler) {
+        cleanupRecursive(handler, 0, cleanupResourcesAmount);
+    }
+
 }

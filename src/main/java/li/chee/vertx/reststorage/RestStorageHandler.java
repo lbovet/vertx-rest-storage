@@ -32,6 +32,26 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             }
         }
 
+        routeMatcher.getWithRegEx(".*_cleanup", new Handler<HttpServerRequest>() {
+            public void handle(final HttpServerRequest request) {
+                storage.cleanup(new Handler<DocumentResource>() {
+                    public void handle(final DocumentResource documentResource) {
+                        request.response().headers().add("Content-Length", "" + documentResource.length);
+                        request.response().headers().add("Content-Type", "application/json; charset=utf-8");
+                        request.response().setStatusCode(200);
+                        final Pump pump = Pump.createPump(documentResource.readStream, request.response());
+                        documentResource.readStream.endHandler(new Handler<Void>() {
+                            public void handle(Void nothing) {
+                                documentResource.closeHandler.handle(null);
+                                request.response().end();
+                            }
+                        });
+                        pump.start();
+                    }
+                });
+            }
+        });
+
         routeMatcher.getWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path().substring(prefix.length()));
@@ -246,6 +266,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 });
             }
         });
+
         routeMatcher.get(".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 request.response().setStatusCode(404);

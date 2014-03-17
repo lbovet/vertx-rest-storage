@@ -25,16 +25,20 @@ public class RestStorageMod extends Verticle {
             etag = config.getString("etag", "none");
             break;
         case "redis":
-            if(config.getObject("redisConfig") != null) {
+            if (config.getObject("redisConfig") != null) {
                 container.deployModule("io.vertx~mod-redis~1.1.3", config.getObject("redisConfig"));
             }
             String redisAddress = config.getString("address", "redis-client");
-            String redisPrefix = config.getString("root", "rest-storage");
-            storage = new RedisStorage(vertx, redisAddress, redisPrefix);
+            String redisResourcesPrefix = config.getString("resources_prefix", "rest-storage:resources");
+            String redisCollectionsPrefix = config.getString("collections_prefix", "rest-storage:collections");
+            String expirableSet = config.getString("expirable_prefix", "rest-storage:expirable");
+            Integer cleanupResourcesAmount = config.getInteger("resource_cleanup_amount", 10);
+            storage = new RedisStorage(vertx, redisAddress, redisResourcesPrefix, redisCollectionsPrefix, expirableSet, cleanupResourcesAmount);
+            // storage = new RedisStorage(vertx, redisAddress, redisPrefix);
             etag = config.getString("etag", "memory");
             break;
         default:
-            throw new RuntimeException("Storage not supported: "+storageName);
+            throw new RuntimeException("Storage not supported: " + storageName);
         }
 
         EtagStore etagStore = etag.equals("memory") ? new SharedMapEtagStore(vertx) : new EmptyEtagStore();

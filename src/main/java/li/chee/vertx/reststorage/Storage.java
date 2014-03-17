@@ -1,6 +1,5 @@
 package li.chee.vertx.reststorage;
 
-import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 
 public interface Storage {
@@ -10,5 +9,7 @@ public interface Storage {
     void put(String path, boolean merge, long expire, Handler<Resource> handler);
 
     void delete(String path, Handler<Resource> handler);
+
+    void cleanup(Handler<DocumentResource> handler);
 
 }
