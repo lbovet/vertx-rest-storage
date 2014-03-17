@@ -201,6 +201,7 @@ public class RedisDelLuaScriptTests {
                 add(prefixResources);
                 add(prefixCollections);
                 add(expirableSet);
+                add("9999999999999");
             }
         }
                 );

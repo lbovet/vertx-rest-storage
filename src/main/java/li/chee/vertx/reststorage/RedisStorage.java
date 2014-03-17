@@ -344,6 +344,7 @@ public class RedisStorage implements Storage {
         args.add(redisResourcesPrefix);
         args.add(redisCollectionsPrefix);
         args.add(expirableSet);
+        args.add(MAX_EXPIRE_IN_MILLIS);
         command.putArray("args", args);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {

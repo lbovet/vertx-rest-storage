@@ -3,7 +3,7 @@ local resourcesPrefix = ARGV[1]
 local collectionsPrefix = ARGV[2]
 local expirableSet = ARGV[3]
 local minscore = 0
-local maxscore = 9999999999999
+local maxscore = tonumber(ARGV[4])
 
 local function deleteChildrenAndItself(path)
     local isCollection = redis.call('exists',collectionsPrefix..path)
@@ -16,7 +16,7 @@ local function deleteChildrenAndItself(path)
 	 		redis.call('del', collectionsPrefix..path)
 	 	end
 	elseif isResource == 1 then
-		redis.log(redis.LOG_NOTICE, "del: "..resourcesPrefix..path)
+		--redis.log(redis.LOG_NOTICE, "del: "..resourcesPrefix..path)
 		redis.call('zrem', expirableSet, resourcesPrefix..path)
 		redis.call('del', resourcesPrefix..path)
 	else
@@ -58,24 +58,24 @@ end
 
 table.remove(pathtable,pathDepth)
 
-redis.log(redis.LOG_NOTICE, "pathDepth: "..pathDepth)
+--redis.log(redis.LOG_NOTICE, "pathDepth: "..pathDepth)
 local orphanParents = 1
 if pathDepth > 1 and redis.call('zcount', collectionsPrefix..pathtable[pathDepth-2],minscore,maxscore) > 1 then
 	orphanParents = 0
 end
 
-redis.log(redis.LOG_NOTICE, "orphanParents: "..orphanParents)
+--redis.log(redis.LOG_NOTICE, "orphanParents: "..orphanParents)
 
 local directParent = 1
 for pathDepthState = pathDepth, 2, -1 do
-	redis.log(redis.LOG_NOTICE, pathtable[pathDepthState-2])
-	redis.log(redis.LOG_NOTICE, nodetable[pathDepthState-1])
+	--redis.log(redis.LOG_NOTICE, pathtable[pathDepthState-2])
+	--redis.log(redis.LOG_NOTICE, nodetable[pathDepthState-1])
     if orphanParents == 1 then
 		 if redis.call('zcount', collectionsPrefix..pathtable[pathDepthState-2],minscore,maxscore) > 1 then
 		 	redis.call('zrem', collectionsPrefix..pathtable[pathDepthState-2], nodetable[pathDepthState-1])
 		 	break
 		 end
-		 redis.log(redis.LOG_NOTICE, "del :"..collectionsPrefix..pathtable[pathDepthState-2])
+		 --redis.log(redis.LOG_NOTICE, "del :"..collectionsPrefix..pathtable[pathDepthState-2])
 		 redis.call('del', collectionsPrefix..pathtable[pathDepthState-2])
 	end
 	if directParent == 1 then
