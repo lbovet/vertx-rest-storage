@@ -374,4 +374,5 @@ public class RedisStorageOld implements Storage {
     public void cleanup(Handler<DocumentResource> handler) {
         // nothing to do here
     }
+
 }

@@ -215,4 +215,5 @@ public class FileSystemStorage implements Storage {
     public void cleanup(Handler<DocumentResource> handler) {
         // nothing to do here
     }
+
 }
