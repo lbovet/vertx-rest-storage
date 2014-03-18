@@ -73,20 +73,6 @@ public class RedisGetLuaScriptTests {
         assertThat(values.get(0), equalTo("test1:"));
     }
 
-    @Test
-    public void getResourcePathDepthIs3WithSiblingsFolderAndDocument() {
-
-        // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test1", "{\"content\": \"test/test1\"}");
-
-        // ACT
-        String value = (String) evalScriptGet(":nemo:server:test:test1");
-
-        // ASSERT
-        assertThat(value, equalTo("{\"content\": \"test/test1\"}"));
-    }
-
     // EXPIRATION
 
     @Test
@@ -143,9 +129,9 @@ public class RedisGetLuaScriptTests {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1) {
+    private String evalScriptPut(final String resourceName1, final String resourceValue1) {
         String putScript = readScript("put.lua");
-        jedis.eval(putScript, new ArrayList() {
+        return (String) jedis.eval(putScript, new ArrayList() {
             {
                 add(resourceName1);
             }

@@ -31,7 +31,7 @@ end
 deleteChildrenAndItself(KEYS[1])
 
 if redis.call('zcount', collectionsPrefix..KEYS[1],minscore,maxscore) > 0 then
-  return "deleted"
+  return 
 end
 
 

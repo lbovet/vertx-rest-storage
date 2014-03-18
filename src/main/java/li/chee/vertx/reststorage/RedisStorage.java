@@ -274,62 +274,49 @@ public class RedisStorage implements Storage {
     @Override
     public void put(String path, final boolean merge, final long expire, final Handler<Resource> handler) {
         final String key = encodePath(path);
-        JsonObject command = new JsonObject();
-        command.putString("command", "type");
-        command.putArray("args", new JsonArray().add(key));
-        eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
-            public void handle(Message<JsonObject> event) {
-                String type = event.body().getString("value");
-                if ("zset".equals(type)) {
-                    CollectionResource c = new CollectionResource();
-                    handler.handle(c);
+        final DocumentResource d = new DocumentResource();
+        final ByteArrayWriteStream stream = new ByteArrayWriteStream();
+        d.writeStream = stream;
+        d.closeHandler = new Handler<Void>() {
+            public void handle(Void event) {
+                String expireInMillis;
+                if (expire > -1) {
+                    expireInMillis = String.valueOf(System.currentTimeMillis() + (expire * 1000));
                 } else {
-                    final DocumentResource d = new DocumentResource();
-                    final ByteArrayWriteStream stream = new ByteArrayWriteStream();
-                    d.writeStream = stream;
-                    d.closeHandler = new Handler<Void>() {
-                        public void handle(Void event) {
-                            String expireInMillis;
-                            if (expire > -1) {
-                                expireInMillis = String.valueOf(System.currentTimeMillis() + (expire * 1000));
-                            } else {
-                                expireInMillis = MAX_EXPIRE_IN_MILLIS;
-                            }
-                            JsonObject command = new JsonObject();
-                            command.putString("command", "evalsha");
-                            JsonArray args = new JsonArray();
-                            args.add(putScriptSha);
-                            args.add(1);
-                            args.add(key);
-                            args.add(redisResourcesPrefix);
-                            args.add(redisCollectionsPrefix);
-                            args.add(expirableSet);
-                            args.add(merge == true ? "true" : "false");
-                            args.add(expireInMillis);
-                            args.add(encodeBinary(stream.getBytes()));
-                            command.putArray("args", args);
-                            eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
-                                public void handle(Message<JsonObject> event) {
-                                    if ("error".equals(event.body().getString("status")) && d.errorHandler != null) {
-                                        d.errorHandler.handle(event.body().getString("message"));
-                                    } else {
-                                        if (expire > 0) {
-                                            JsonObject command = new JsonObject();
-                                            command.putString("command", "expire");
-                                            command.putArray("args", new JsonArray().add(key).add(expire));
-                                            eb.send(redisAddress, command);
-                                        }
-                                        d.endHandler.handle(null);
-                                    }
-                                }
-                            });
-                        }
-                    };
-                    handler.handle(d);
+                    expireInMillis = MAX_EXPIRE_IN_MILLIS;
                 }
+                JsonObject command = new JsonObject();
+                command.putString("command", "evalsha");
+                JsonArray args = new JsonArray();
+                args.add(putScriptSha);
+                args.add(1);
+                args.add(key);
+                args.add(redisResourcesPrefix);
+                args.add(redisCollectionsPrefix);
+                args.add(expirableSet);
+                args.add(merge == true ? "true" : "false");
+                args.add(expireInMillis);
+                args.add(encodeBinary(stream.getBytes()));
+                command.putArray("args", args);
+                eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
+                    public void handle(Message<JsonObject> event) {
+                        if ("error".equals(event.body().getString("status")) && d.errorHandler != null) {
+                            d.errorHandler.handle(event.body().getString("message"));
+                        } else if ("existingCollection".equals(event.body().getString("value"))) {
+                            CollectionResource c = new CollectionResource();
+                            handler.handle(c);
+                        } else if ("existingResource".equals(event.body().getString("value"))) {
+                            DocumentResource d = new DocumentResource();
+                            d.exists = false;
+                            handler.handle(d);
+                        } else {
+                            d.endHandler.handle(null);
+                        }
+                    }
+                });
             }
-        });
-
+        };
+        handler.handle(d);
     }
 
     @Override

@@ -34,119 +34,101 @@ public class RedisDelLuaScriptTests {
     public void deleteResource2BranchesDeleteOnRootNode() {
 
         // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
 
         // ACT
-        evalScriptDel(":nemo");
+        evalScriptDel(":project");
 
         // ASSERT
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test2"), equalTo(false));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test22"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test2"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test22"), equalTo(false));
     }
 
     @Test
     public void deleteResource2BranchesDeleteOnForkNode() {
 
         // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
 
         // ACT
-        evalScriptDel(":nemo:server:test");
+        evalScriptDel(":project:server:test");
 
         // ASSERT
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test2"), equalTo(false));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test22"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test2"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test22"), equalTo(false));
     }
 
     @Test
     public void deleteResource2BranchesDeleteOneLevelAboveBranch() {
 
         // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
 
         // ACT
-        evalScriptDel(":nemo:server:test:test1");
+        evalScriptDel(":project:server:test:test1");
 
         // ASSERT
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).iterator().next(), equalTo("server"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test11"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test11", 0d, 9999999999999d).iterator().next(), equalTo("test22"));
-        assertThat(jedis.get("rest-storage:resources:nemo:server:test:test11:test22"), equalTo("{\"content\": \"test/test1/test2\"}"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test1:test2"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project", 0d, 9999999999999d).iterator().next(), equalTo("server"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test11"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test11", 0d, 9999999999999d).iterator().next(), equalTo("test22"));
+        assertThat(jedis.get("rest-storage:resources:project:server:test:test11:test22"), equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test1:test2"), equalTo(false));
     }
 
     @Test
     public void deleteResource2BranchesDeleteOnOneResource() {
 
         // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
 
         // ACT
-        evalScriptDel(":nemo:server:test:test1:test2");
+        evalScriptDel(":project:server:test:test1:test2");
 
         // ASSERT
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).iterator().next(), equalTo("server"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test11"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test11", 0d, 9999999999999d).iterator().next(), equalTo("test22"));
-        assertThat(jedis.get("rest-storage:resources:nemo:server:test:test11:test22"), equalTo("{\"content\": \"test/test1/test2\"}"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test2"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project", 0d, 9999999999999d).iterator().next(), equalTo("server"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test11"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test11", 0d, 9999999999999d).iterator().next(), equalTo("test22"));
+        assertThat(jedis.get("rest-storage:resources:project:server:test:test11:test22"), equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test2"), equalTo(false));
     }
 
     @Test
     public void deleteResource2BranchesDeleteOnBothResources() {
 
         // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
+        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}");
 
         // ACT
-        evalScriptDel(":nemo:server:test:test1:test2");
-        evalScriptDel(":nemo:server:test:test11:test22");
+        evalScriptDel(":project:server:test:test1:test2");
+        evalScriptDel(":project:server:test:test11:test22");
 
         // ASSERT
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test2"), equalTo(false));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
-        assertThat(jedis.exists("rest-storage:resources:nemo:server:test:test11:test22"), equalTo(false));
-    }
-
-    @Test
-    public void deleteResourcePathDepthIs3WithSiblingsFolderAndDocument() {
-
-        // ARRANGE
-        evalScriptPut(":nemo:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
-        evalScriptPut(":nemo:server:test:test1", "{\"content\": \"test/test1\"}");
-
-        // ACT
-        evalScriptDel(":nemo:server:test:test1");
-
-        // ASSERT
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo", 0d, 9999999999999d).iterator().next(), equalTo("server"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test1"));
-        assertThat(jedis.zrangeByScore("rest-storage:collections:nemo:server:test:test1", 0d, 9999999999999d).iterator().next(), equalTo("test2"));
-        assertThat(jedis.get("rest-storage:resources:nemo:server:test:test1:test2"), equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test2"), equalTo(false));
+        assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test11", 0d, 9999999999999d).size(), equalTo(0));
+        assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test22"), equalTo(false));
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })

@@ -206,11 +206,12 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                         && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
                 storage.put(path, merge, expire, new Handler<Resource>() {
                     public void handle(Resource resource) {
-                        if (!resource.exists) {
+                        if (!resource.exists && resource instanceof DocumentResource) {
                             request.resume();
-                            request.response().setStatusCode(404);
-                            request.response().setStatusMessage("Not Found");
-                            request.response().end("404 Not Found");
+                            request.response().setStatusCode(405);
+                            request.response().setStatusMessage("Method Not Allowed");
+                            request.response().headers().add("Allow", "GET, DELETE");
+                            request.response().end();
                         }
                         if (resource instanceof CollectionResource) {
                             request.resume();

@@ -9,6 +9,13 @@ local resourceValue = ARGV[6]
 local pathState
 local collections = {}
 local nodes = {path:match((path:gsub("[^"..sep.."]*"..sep, "([^"..sep.."]*)"..sep)))}
+
+if redis.call('exists',resourcesPrefix..KEYS[1]) == 1 then
+  return "existingResource"
+elseif redis.call('exists',collectionsPrefix..KEYS[1]) == 1 then
+  return "existingCollection"
+end
+
 for key,value in pairs(nodes) do
     if pathState == nil then
     	pathState = value
@@ -16,6 +23,9 @@ for key,value in pairs(nodes) do
     	collections[pathState] = value
     	pathState = pathState..sep..value
    	end 
+   	if redis.call('exists',resourcesPrefix..pathState) == 1 then
+      return "existingResource"
+    end
 end
 for key,value in pairs(collections) do
 	local collectionKey = collectionsPrefix..key
