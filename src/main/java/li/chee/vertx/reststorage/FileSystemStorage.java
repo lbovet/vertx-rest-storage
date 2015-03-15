@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.UUID;
+
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
@@ -24,7 +25,7 @@ public class FileSystemStorage implements Storage {
     }
 
     @Override
-    public void get(String path, final Handler<Resource> handler) {
+    public void get(String path, String etag, final int offset, final int count, final Handler<Resource> handler) {
         final String fullPath = canonicalize(path);
         fileSystem().exists(fullPath, new AsyncResultHandler<Boolean>() {
             public void handle(AsyncResult<Boolean> event) {
@@ -59,7 +60,14 @@ public class FileSystemStorage implements Storage {
                                                     c.items.add(r);
                                                     if (c.items.size() == length) {
                                                         Collections.sort(c.items);
-                                                        handler.handle(c);
+                                                        if(offset > -1) {
+                                                        	if(offset >= c.items.size() || (offset+count) >= c.items.size()) {
+                                                        		handler.handle(c);
+                                                        	} else {
+                                                        		c.items = c.items.subList(offset, offset+count);
+                                                        		handler.handle(c);
+                                                        	}
+                                                        }
                                                     }
                                                 }
                                             });
@@ -97,7 +105,7 @@ public class FileSystemStorage implements Storage {
     }
 
     @Override
-    public void put(String path, boolean merge, long expire, final Handler<Resource> handler) {
+    public void put(String path, String etag, boolean merge, long expire, final Handler<Resource> handler) {
         final String fullPath = canonicalize(path);
         fileSystem().exists(fullPath, new AsyncResultHandler<Boolean>() {
             public void handle(AsyncResult<Boolean> event) {
@@ -212,7 +220,7 @@ public class FileSystemStorage implements Storage {
     }
 
     @Override
-    public void cleanup(Handler<DocumentResource> handler) {
+    public void cleanup(Handler<DocumentResource> handler, String cleanupResourcesAmount) {
         // nothing to do here
     }
 

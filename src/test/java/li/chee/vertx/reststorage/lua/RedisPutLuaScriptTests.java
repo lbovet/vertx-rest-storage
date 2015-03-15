@@ -1,6 +1,8 @@
 package li.chee.vertx.reststorage.lua;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -9,10 +11,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+
 import org.apache.commons.lang.StringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.vertx.java.core.json.JsonObject;
 import redis.clients.jedis.Jedis;
 
 public class RedisPutLuaScriptTests {
@@ -22,6 +27,8 @@ public class RedisPutLuaScriptTests {
     private final static String prefixResources = "rest-storage:resources";
     private final static String prefixCollections = "rest-storage:collections";
     private final static String expirableSet = "rest-storage:expirable";
+    private final static String RESOURCE = "resource";
+    private final static String ETAG = "etag";
 
     @Before
     public void connect() {
@@ -45,7 +52,7 @@ public class RedisPutLuaScriptTests {
         assertThat("test", equalTo(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).iterator().next()));
         assertThat("test1", equalTo(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).iterator().next()));
         assertThat("test2", equalTo(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).iterator().next()));
-        assertThat("{\"content\": \"test/test1/test2\"}", equalTo(jedis.get("rest-storage:resources:project:server:test:test1:test2")));
+        assertThat("{\"content\": \"test/test1/test2\"}", equalTo(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE)));
     }
 
     @Test
@@ -60,7 +67,7 @@ public class RedisPutLuaScriptTests {
         assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
         assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test1"));
         assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).iterator().next(), equalTo("test2"));
-        assertThat(jedis.get("rest-storage:resources:project:server:test:test1:test2"), equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo("{\"content\": \"test/test1/test2\"}"));
     }
 
     @Test
@@ -74,7 +81,71 @@ public class RedisPutLuaScriptTests {
         assertThat(jedis.zrangeByScore("rest-storage:collections:project:server", 0d, 9999999999999d).iterator().next(), equalTo("test"));
         assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test", 0d, 9999999999999d).iterator().next(), equalTo("test1"));
         assertThat(jedis.zrangeByScore("rest-storage:collections:project:server:test:test1", 0d, 9999999999999d).iterator().next(), equalTo("test2"));
-        assertThat(jedis.get("rest-storage:resources:project:server:test:test1:test2"), equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo("{\"content\": \"test/test1/test2\"}"));
+    }
+
+    @Test
+    public void putResourceMergeOnEmpty() {
+
+        // ACT
+        String value = (String) evalScriptPutMerge(":project:server:test:test1:test2", "{\"content\": \"test_test1_test3\"}");
+
+        // ASSERT
+        String result = jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE);
+        JsonObject obj = new JsonObject(result);
+        assertThat(obj.getString("content"), equalTo("test_test1_test3"));
+    }
+
+    @Test
+    public void putResourceMergeOnExisting() {
+
+        // ACT
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test_test1_test2\"}");
+        String value = (String) evalScriptPutMerge(":project:server:test:test1:test2", "{\"content\": \"test_test1_test3\"}");
+
+        // ASSERT
+        String result = jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE);
+        JsonObject obj = new JsonObject(result);
+        assertThat(obj.getString("content"), equalTo("test_test1_test3"));
+    }
+
+    @Test
+    public void putResourceWithProvidedEtagValue() {
+
+        // ACT
+        String originalContent = "{\"content\": \"originalContent\"}";
+        String value = evalScriptPut(":project:server:test:test1:test2", originalContent, "myFancyEtagValue");
+        String modifiedContent = "{\"content\": \"modifiedContent\"}";
+        String value2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, "myFancyEtagValue");
+
+        // ASSERT
+        assertThat(value, is(not(equalTo("notModified"))));
+        assertThat(value2, is(equalTo("notModified")));
+
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG), equalTo("myFancyEtagValue"));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(originalContent));
+    }
+
+    @Test
+    public void putResourceWithNotProvidedEtagValue() {
+
+        // ACT
+        String originalContent = "{\"content\": \"originalContent\"}";
+        String value = evalScriptPut(":project:server:test:test1:test2", originalContent);
+
+        // ASSERT
+        assertThat(value, is(not(equalTo("notModified"))));
+        String etagValue = jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG);
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(originalContent));
+
+        // ACT
+        String modifiedContent = "{\"content\": \"modifiedContent\"}";
+        String value2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent);
+
+        // ASSERT
+        assertThat(value2, is(not(equalTo("notModified"))));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(modifiedContent));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG), is(not(equalTo(etagValue))));
     }
 
     @Test
@@ -86,13 +157,13 @@ public class RedisPutLuaScriptTests {
 
         // ACT
         List<String> valueTest1 = (List<String>) evalScriptGet(":project:server:test:test1");
-        String valueTest2 = (String) evalScriptGet(":project:server:test:test1:test2");
+        List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutTest2));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("test2"));
-        assertThat(valueTest2, equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
     }
 
     @Test
@@ -104,13 +175,13 @@ public class RedisPutLuaScriptTests {
 
         // ACT
         List<String> valueTest1 = (List<String>) evalScriptGet(":project:server:test");
-        String valueTest2 = (String) evalScriptGet(":project:server:test:test1:test2");
+        List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutTest2));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("test1:"));
-        assertThat(valueTest2, equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
     }
 
     @Test
@@ -122,13 +193,13 @@ public class RedisPutLuaScriptTests {
 
         // ACT
         List<String> valueTest1 = (List<String>) evalScriptGet(":project:server");
-        String valueTest2 = (String) evalScriptGet(":project:server:test:test1:test2");
+        List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutTest2));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("test:"));
-        assertThat(valueTest2, equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
     }
 
     @Test
@@ -140,13 +211,13 @@ public class RedisPutLuaScriptTests {
 
         // ACT
         List<String> valueTest1 = (List<String>) evalScriptGet(":project");
-        String valueTest2 = (String) evalScriptGet(":project:server:test:test1:test2");
+        List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutTest2));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("server:"));
-        assertThat(valueTest2, equalTo("{\"content\": \"test/test1/test2\"}"));
+        assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
     }
 
     @Test
@@ -157,13 +228,13 @@ public class RedisPutLuaScriptTests {
         String resultPutTest2 = evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}");
 
         // ACT
-        String valueTest1 = (String) evalScriptGet(":project:server:test:test1");
+        List<String> valueTest1 = (List<String>) evalScriptGet(":project:server:test:test1");
         String valueTest2 = (String) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutTest1));
-        assertThat(resultPutTest2, equalTo("existingResource"));
-        assertThat(valueTest1, equalTo("{\"content\": \"test/test1\"}"));
+        assertThat(resultPutTest2, equalTo("existingResource rest-storage:resources:project:server:test:test1"));
+        assertThat(valueTest1.get(1), equalTo("{\"content\": \"test/test1\"}"));
         assertThat(valueTest2, equalTo("notFound"));
     }
 
@@ -175,13 +246,13 @@ public class RedisPutLuaScriptTests {
         String resultPutTest3 = evalScriptPut(":project:server:test:test1:test2:test3", "{\"content\": \"test/test1/test2/test3\"}");
 
         // ACT
-        String valueTest1 = (String) evalScriptGet(":project:server:test:test1");
+        List<String> valueTest1 = (List<String>) evalScriptGet(":project:server:test:test1");
         String valueTest3 = (String) evalScriptGet(":project:server:test:test1:test2:test3");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutTest1));
-        assertThat(resultPutTest3, equalTo("existingResource"));
-        assertThat(valueTest1, equalTo("{\"content\": \"test/test1\"}"));
+        assertThat(resultPutTest3, equalTo("existingResource rest-storage:resources:project:server:test:test1"));
+        assertThat(valueTest1.get(1), equalTo("{\"content\": \"test/test1\"}"));
         assertThat(valueTest3, equalTo("notFound"));
     }
 
@@ -193,20 +264,38 @@ public class RedisPutLuaScriptTests {
         String resultPutNemoServer = evalScriptPut(":project:server", "{\"content\": \"nemo/server\"}");
 
         // ACT
-        String valueNemo = (String) evalScriptGet(":project");
+        List<String> valueNemo = (List<String>) evalScriptGet(":project");
         String valueServer = (String) evalScriptGet(":project:server");
 
         // ASSERT
         assertTrue(StringUtils.isEmpty(resultPutNemo));
-        assertThat(resultPutNemoServer, equalTo("existingResource"));
-        assertThat(valueNemo, equalTo("{\"content\": \"nemo\"}"));
+        assertThat(resultPutNemoServer, equalTo("existingResource rest-storage:resources:project"));
+        assertThat(valueNemo.get(1), equalTo("{\"content\": \"nemo\"}"));
+        assertThat(valueServer, equalTo("notFound"));
+    }
+
+    @Test
+    public void tryToPutCollectionOnResourceFourLevelOneLevelAbovePath() {
+
+        // ARRANGE
+        String resultPutNemo = evalScriptPut(":nemo:server:tests:crush:test1", "{\"content\": \"nemo\"}");
+        String resultPutNemoServer = evalScriptPut(":nemo:server:tests:crush:test1:test2:test3", "{\"content\": \"nemo/server\"}");
+
+        // ACT
+        List<String> valueNemo = (List<String>) evalScriptGet(":nemo:server:tests:crush:test1");
+        String valueServer = (String) evalScriptGet(":nemo:server:tests:crush:test1:test2:test3");
+
+        // ASSERT
+        assertTrue(StringUtils.isEmpty(resultPutNemo));
+        assertThat(resultPutNemoServer, equalTo("existingResource rest-storage:resources:nemo:server:tests:crush:test1"));
+        assertThat(valueNemo.get(1), equalTo("{\"content\": \"nemo\"}"));
         assertThat(valueServer, equalTo("notFound"));
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1, final String expire) {
+    private Object evalScriptPutMerge(final String resourceName1, final String resourceValue1) {
         String putScript = readScript("put.lua");
-        jedis.eval(putScript, new ArrayList() {
+        return jedis.eval(putScript, new ArrayList() {
             {
                 add(resourceName1);
             }
@@ -215,9 +304,11 @@ public class RedisPutLuaScriptTests {
                 add(prefixResources);
                 add(prefixCollections);
                 add(expirableSet);
-                add("false");
-                add(expire);
+                add("true");
+                add("9999999999999");
+                add("9999999999999");
                 add(resourceValue1);
+                add(UUID.randomUUID().toString());
             }
         }
                 );
@@ -225,22 +316,36 @@ public class RedisPutLuaScriptTests {
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
     private String evalScriptPut(final String resourceName1, final String resourceValue1) {
+        return evalScriptPut(resourceName1, resourceValue1, null);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
+    private String evalScriptPut(final String resourceName1, final String resourceValue1, final String etag) {
         String putScript = readScript("put.lua");
-        return (String) jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("false");
-                add("9999999999999");
-                add(resourceValue1);
-            }
+        String etagTmp = null;
+        if(etag != null && !etag.isEmpty()){
+            etagTmp = etag;
+        } else {
+            etagTmp = UUID.randomUUID().toString();
         }
-                );
+        final String etagValue = etagTmp;
+        return (String) jedis.eval(putScript, new ArrayList() {
+                    {
+                        add(resourceName1);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(expirableSet);
+                        add("false");
+                        add("9999999999999");
+                        add("9999999999999");
+                        add(resourceValue1);
+                        add(etagValue);
+                    }
+                }
+        );
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
