@@ -17,12 +17,7 @@
 apply plugin: 'maven'
 apply plugin: 'signing'
 
-if (!hasProperty('sonatypeUsername')) {
-	ext.sonatypeUsername = ''
-}
-if (!hasProperty('sonatypePassword')) {
-	ext.sonatypePassword = ''
-}
+
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // maven task configuration
@@ -40,17 +35,44 @@ uploadArchives {
 
 	repositories {
 		mavenDeployer {
-      // setUniqueVersion(false)
 
-			configuration = configurations.archives
+            // setUniqueVersion(false)
 
-			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-				authentication(userName: sonatypeUsername, password: sonatypePassword)
-			}
+            configuration = configurations.archives
 
-			snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-				authentication(userName: sonatypeUsername, password: sonatypePassword)
-			}
+            if (!project.hasProperty('repoUsername')) {
+                println 'did not got property repoUsername: ' + repoUsername
+                ext.repoUsername = ''
+            } else {
+                println 'got property repoUsername: ' + repoUsername
+            }
+
+            if (!project.hasProperty('repoPassword')) {
+                println 'did not got property repoPassword: ' + repoPassword
+                ext.repoPassword = ''
+            } else {
+                println 'got property repoPassword: ' + repoPassword
+            }
+
+            if(project.hasProperty('customUploadRepository')) {
+                println 'found custom repo: ' + customUploadRepository
+                repository(url: "$customUploadRepository") {
+                    authentication(userName: "$repoUsername", password: "$repoPassword")
+                }
+
+                snapshotRepository(url: "$customUploadRepository") {
+                    authentication(userName: "$repoUsername", password: "$repoPassword")
+                }
+            } else {
+                println 'didnt found custom repo'
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: repoUsername, password: repoPassword)
+                }
+
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: repoUsername, password: repoPassword)
+                }
+            }
 
 			if (isReleaseVersion) {
 				beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }

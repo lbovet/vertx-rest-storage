@@ -61,7 +61,7 @@ public class FileSystemStorage implements Storage {
                                                     if (c.items.size() == length) {
                                                         Collections.sort(c.items);
                                                         if(offset > -1) {
-                                                        	if(offset >= c.items.size() || (offset+count) >= c.items.size()) {
+                                                        	if(offset >= c.items.size() || (offset+count) >= c.items.size() || (offset == 0 && count == -1)) {
                                                         		handler.handle(c);
                                                         	} else {
                                                         		c.items = c.items.subList(offset, offset+count);

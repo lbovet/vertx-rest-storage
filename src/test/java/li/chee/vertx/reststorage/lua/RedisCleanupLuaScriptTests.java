@@ -18,6 +18,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
+@Ignore
 public class RedisCleanupLuaScriptTests {
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;

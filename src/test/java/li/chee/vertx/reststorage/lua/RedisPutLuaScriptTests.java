@@ -16,10 +16,12 @@ import java.util.UUID;
 import org.apache.commons.lang.StringUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.vertx.java.core.json.JsonObject;
 import redis.clients.jedis.Jedis;
 
+@Ignore
 public class RedisPutLuaScriptTests {
 
     Jedis jedis = null;

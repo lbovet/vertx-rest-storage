@@ -10,9 +10,11 @@ import java.util.UUID;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
+@Ignore
 public class RedisDelLuaScriptTests {
 
     Jedis jedis = null;
