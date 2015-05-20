@@ -11,19 +11,32 @@ import org.vertx.java.core.http.HttpClient;
 import org.vertx.java.core.http.HttpClientRequest;
 import org.vertx.java.core.http.HttpClientResponse;
 import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.core.logging.Logger;
 import org.vertx.testtools.TestVerticle;
 
 public class IntegrationTest extends TestVerticle {
 
+    private Logger log;
+
     @Override
     public void start() {
-        initialize();        
-        container.deployModule(System.getProperty("vertx.modulename"), 
-                new JsonObject().putString("prefix", "/test").putString("root", "dogs"), 1, new AsyncResultHandler<String>() {
+
+        log = container.logger();
+
+        // Make sure we call initialize() - this sets up the assert stuff so assert
+        // functionality works correctly
+        initialize();
+        // Deploy the module - the System property `vertx.modulename` will contain
+        // the name of the module so you
+        // don't have to hardecode it in your tests
+        final String moduleName = System.getProperty("vertx.modulename");
+        JsonObject config = new JsonObject().putString("storageAddress", "we-love-to-put").putString("prefix", "/test").putString("root", "dogs");
+        container.deployModule(moduleName, config, 1, new AsyncResultHandler<String>() {
             public void handle(AsyncResult<String> event) {
+                log.info("success of deployment of  module " + moduleName + ": " + event.result());
                	startTests();
             }
-        });  
+        });
     }
 
     class PrintHandler implements Handler<HttpClientResponse> {

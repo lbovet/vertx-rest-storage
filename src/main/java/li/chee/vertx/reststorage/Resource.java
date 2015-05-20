@@ -6,6 +6,7 @@ import org.vertx.java.core.Handler;
 public class Resource implements Comparable<Resource>{
     public String name;
     public boolean exists=true;
+    public boolean modified=true;
     
     public Handler<String> errorHandler;
     
