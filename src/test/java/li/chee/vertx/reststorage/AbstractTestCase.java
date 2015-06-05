@@ -31,7 +31,7 @@ public abstract class AbstractTestCase extends TestVerticle {
     }
 
     private static boolean useExternalRedis() {
-        String externalRedis = System.getenv("externalRedis");
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
         return externalRedis != null;
     }
     @BeforeClass
