@@ -8,13 +8,10 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.UUID;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
+import org.junit.*;
 import redis.clients.jedis.Jedis;
 
-@Ignore
 public class RedisDelLuaScriptTests {
 
     Jedis jedis = null;
@@ -27,6 +24,16 @@ public class RedisDelLuaScriptTests {
     private final static String RESOURCE = "resource";
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
+
+    @BeforeClass
+    public static void startRedis() {
+        RedisEmbeddedConfiguration.redisServer.start();
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        RedisEmbeddedConfiguration.redisServer.stop();
+    }
 
     @Before
     public void connect() {

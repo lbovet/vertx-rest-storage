@@ -54,6 +54,16 @@ Dependencies
 
 Redis persistence uses the redis-client busmod "de.marx-labs.redis-client". You must deploy it yourself.
 
+Use gradle with alternative repositories
+----------------------------------------
+As standard the default maven repositories are set.
+You can overwrite these repositories by setting these properties (`-Pproperty=value`):
+
+* `repository` this is the repository where resources are fetched
+* `uploadRepository` the repository used in `uploadArchives`
+* `repoUsername` the username for uploading archives
+* `repoPassword` the password for uploading archives
+
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lbovet/vertx-rest-storage/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 

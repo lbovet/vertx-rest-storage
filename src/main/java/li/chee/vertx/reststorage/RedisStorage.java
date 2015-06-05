@@ -677,6 +677,9 @@ public class RedisStorage implements Storage {
         command.putArray("args", args);
         eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> event) {
+                if (log.isTraceEnabled()) {
+                    log.trace("RedisStorage cleanup resources result: " + event.body().getString("status"));
+                }
                 if("error".equals(event.body().getString("status"))) {
                     String message = event.body().getString("message");
                     if(message != null && message.startsWith("NOSCRIPT")) {
@@ -686,8 +689,14 @@ public class RedisStorage implements Storage {
                     }
                 }
                 Long cleanedThisRun = event.body().getLong("value");
+                if (log.isTraceEnabled()) {
+                    log.trace("RedisStorage cleanup resources cleanded this run: " + cleanedThisRun);
+                }
                 final long cleaned = cleanedLastRun + cleanedThisRun;
                 if (cleanedThisRun != 0 && cleaned < maxdel) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("RedisStorage cleanup resources call recursive next bulk");
+                    }
                     cleanupRecursive(handler, cleaned, maxdel, bulkSize);
                 } else {
                     JsonObject command = new JsonObject();
@@ -700,6 +709,9 @@ public class RedisStorage implements Storage {
                     eb.send(redisAddress, command, new Handler<Message<JsonObject>>() {
                         public void handle(Message<JsonObject> event) {
                             Number result = event.body().getNumber("value");
+                            if (log.isTraceEnabled()) {
+                                log.trace("RedisStorage cleanup resources zcount on expirable set: " + result);
+                            }
                             int resToCleanLeft = 0;
                             if (result != null && result.intValue() >= 0) {
                                 resToCleanLeft = result.intValue();
@@ -762,6 +774,9 @@ public class RedisStorage implements Storage {
     @Override
     public void cleanup(Handler<DocumentResource> handler, String cleanupResourcesAmountStr) {
         long cleanupResourcesAmountUsed = cleanupResourcesAmount;
+        if (log.isTraceEnabled()) {
+            log.trace("RedisStorage cleanup resources,  cleanupResourcesAmount: " + cleanupResourcesAmountUsed);
+        }
         try {
             cleanupResourcesAmountUsed = Long.parseLong(cleanupResourcesAmountStr);
         } catch (Exception e) {

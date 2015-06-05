@@ -10,15 +10,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.commons.lang.time.DurationFormatUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
-@Ignore
 public class RedisCleanupLuaScriptTests {
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
@@ -30,6 +32,16 @@ public class RedisCleanupLuaScriptTests {
     private final static String prefixDeltaResources = "delta:resources";
     private final static String prefixDeltaEtags = "delta:etags";
     private final static String expirableSet = "rest-storage:expirable";
+
+    @BeforeClass
+    public static void startRedis() {
+        RedisEmbeddedConfiguration.redisServer.start();
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        RedisEmbeddedConfiguration.redisServer.stop();
+    }
 
     @Before
     public void connect() {
@@ -174,7 +186,6 @@ public class RedisCleanupLuaScriptTests {
 
         // ASSERT
         assertThat(jedis.zcount("rest-storage:collections:project:server:test:test1", getNowAsDouble(), MAX_EXPIRE_IN_MILLIS), equalTo(1000000l));
-
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })

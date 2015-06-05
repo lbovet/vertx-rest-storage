@@ -60,11 +60,15 @@ public class FileSystemStorage implements Storage {
                                                     c.items.add(r);
                                                     if (c.items.size() == length) {
                                                         Collections.sort(c.items);
+                                                        int n = count;
+                                                        if(n == -1) {
+                                                            n = length;
+                                                        }
                                                         if(offset > -1) {
-                                                        	if(offset >= c.items.size() || (offset+count) >= c.items.size() || (offset == 0 && count == -1)) {
+                                                        	if(offset >= c.items.size() || (offset+n) >= c.items.size() || (offset == 0 && n == -1)) {
                                                         		handler.handle(c);
                                                         	} else {
-                                                        		c.items = c.items.subList(offset, offset+count);
+                                                        		c.items = c.items.subList(offset, offset+n);
                                                         		handler.handle(c);
                                                         	}
                                                         }

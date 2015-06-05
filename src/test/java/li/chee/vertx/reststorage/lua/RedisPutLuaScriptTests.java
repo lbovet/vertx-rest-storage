@@ -13,15 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
 import org.apache.commons.lang.StringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 import org.vertx.java.core.json.JsonObject;
 import redis.clients.jedis.Jedis;
 
-@Ignore
 public class RedisPutLuaScriptTests {
 
     Jedis jedis = null;
@@ -31,6 +28,16 @@ public class RedisPutLuaScriptTests {
     private final static String expirableSet = "rest-storage:expirable";
     private final static String RESOURCE = "resource";
     private final static String ETAG = "etag";
+
+    @BeforeClass
+    public static void startRedis() {
+        RedisEmbeddedConfiguration.redisServer.start();
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        RedisEmbeddedConfiguration.redisServer.stop();
+    }
 
     @Before
     public void connect() {
