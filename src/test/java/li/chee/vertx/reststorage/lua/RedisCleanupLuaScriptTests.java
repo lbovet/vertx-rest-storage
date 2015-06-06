@@ -1,7 +1,11 @@
 package li.chee.vertx.reststorage.lua;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
+import org.apache.commons.lang.text.StrSubstitutor;
+import org.apache.commons.lang.time.DurationFormatUtils;
+import org.junit.*;
+import redis.clients.jedis.Jedis;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -10,16 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
-import org.apache.commons.lang.text.StrSubstitutor;
-import org.apache.commons.lang.time.DurationFormatUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
-import redis.clients.jedis.Jedis;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertThat;
 
 public class RedisCleanupLuaScriptTests {
 
@@ -33,14 +29,23 @@ public class RedisCleanupLuaScriptTests {
     private final static String prefixDeltaEtags = "delta:etags";
     private final static String expirableSet = "rest-storage:expirable";
 
+    protected static boolean useExternalRedis() {
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
+        return externalRedis != null;
+    }
+
     @BeforeClass
-    public static void startRedis() {
-        RedisEmbeddedConfiguration.redisServer.start();
+    public static void config() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.start();
+        }
     }
 
     @AfterClass
     public static void stopRedis() {
-        RedisEmbeddedConfiguration.redisServer.stop();
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
     }
 
     @Before
