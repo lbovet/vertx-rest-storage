@@ -83,6 +83,7 @@ public class RedisCleanupLuaScriptTests {
     }
 
     @Test
+    @Ignore
     public void cleanupOneExpiredAmount2() throws InterruptedException {
 
         // ARRANGE
