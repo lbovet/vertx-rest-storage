@@ -40,6 +40,7 @@ public class RedisCleanupLuaScriptTests {
             RedisEmbeddedConfiguration.redisServer.start();
         }
         jedis = JedisFactory.createJedis();
+        jedis.flushAll();
     }
 
     @After
