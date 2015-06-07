@@ -47,7 +47,7 @@ public class RedisDelLuaScriptTests {
 
     @Before
     public void connect() {
-        jedis = new Jedis("localhost");
+        jedis = JedisFactory.createJedis();
     }
 
     @After
@@ -204,7 +204,6 @@ public class RedisDelLuaScriptTests {
     }
 
     @Test
-    @Ignore
     public void deleteExpiredResourceOfTwo() throws InterruptedException {
 
         // ARRANGE

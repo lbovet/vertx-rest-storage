@@ -50,7 +50,7 @@ public class RedisCleanupLuaScriptTests {
 
     @Before
     public void connect() {
-        jedis = new Jedis("localhost");
+        jedis = JedisFactory.createJedis();
     }
 
     @After

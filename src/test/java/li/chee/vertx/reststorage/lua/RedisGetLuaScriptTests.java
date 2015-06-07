@@ -45,7 +45,7 @@ public class RedisGetLuaScriptTests {
 
     @Before
     public void connect() {
-        jedis = new Jedis("localhost");
+        jedis = JedisFactory.createJedis();
     }
 
     @After
