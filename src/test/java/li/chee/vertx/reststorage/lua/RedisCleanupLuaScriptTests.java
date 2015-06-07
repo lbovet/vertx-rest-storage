@@ -34,11 +34,22 @@ public class RedisCleanupLuaScriptTests {
         return externalRedis != null;
     }
 
-    @Before
-    public void connect() {
+    @BeforeClass
+    public static void config() {
         if(!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.start();
         }
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
+    }
+
+    @Before
+    public void connect() {
         jedis = JedisFactory.createJedis();
         jedis.flushAll();
     }
@@ -47,9 +58,6 @@ public class RedisCleanupLuaScriptTests {
     public void disconnnect() {
         jedis.flushAll();
         jedis.close();
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.stop();
-        }
     }
 
     @Test
