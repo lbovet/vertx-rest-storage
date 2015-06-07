@@ -133,7 +133,6 @@ public class RedisCleanupLuaScriptTests {
     }
 
     @Test
-    @Ignore //this test failed on codeship
     public void cleanup7000ExpiredAmount21000Bulksize1000() throws InterruptedException {
 
         // ARRANGE
@@ -142,16 +141,22 @@ public class RedisCleanupLuaScriptTests {
         for (int i = 1; i <= 21000; i++) {
             evalScriptPut(":project:server:test:test1:test" + i, "{\"content\": \"test" + i + "\"}", i % 3 == 0 ? now : maxExpire);
         }
-        Thread.sleep(10);
+        Thread.sleep(1000);
 
         // ACT
         long start = System.currentTimeMillis();
         Long count1round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
+        Thread.sleep(100);
         Long count2round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
+        Thread.sleep(100);
         Long count3round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
+        Thread.sleep(100);
         Long count4round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
+        Thread.sleep(100);
         Long count5round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
+        Thread.sleep(100);
         Long count6round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
+        Thread.sleep(100);
         Long count7round = (Long) evalScriptCleanup(0, System.currentTimeMillis(), 1000, true);
         long end = System.currentTimeMillis();
 
