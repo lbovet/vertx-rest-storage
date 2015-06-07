@@ -84,7 +84,7 @@ public class RedisCleanupLuaScriptTests {
     }
 
     @Test
-    @Ignore
+    @Ignore //this test failed on codeship
     public void cleanupOneExpiredAmount2() throws InterruptedException {
 
         // ARRANGE
