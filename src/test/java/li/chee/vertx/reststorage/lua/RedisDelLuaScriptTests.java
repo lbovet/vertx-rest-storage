@@ -204,6 +204,7 @@ public class RedisDelLuaScriptTests {
     }
 
     @Test
+    @Ignore
     public void deleteExpiredResourceOfTwo() throws InterruptedException {
 
         // ARRANGE
