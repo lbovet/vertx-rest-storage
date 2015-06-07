@@ -1,6 +1,8 @@
 vertx-rest-storage
 ==================
 
+[ ![Codeship Status for postit12/vertx-rest-storage](https://codeship.com/projects/29282ed0-ef1b-0132-1b5c-3628cb5d23b0/status?branch=master)](https://codeship.com/projects/84306)
+
 Persistence for REST resources in the filesystem or a redis database. 
 
 Stores resources in a hierarchical way according to their URI. It actually implements a generic CRUD REST service.
