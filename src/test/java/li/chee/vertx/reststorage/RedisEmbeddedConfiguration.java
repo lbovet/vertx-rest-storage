@@ -15,4 +15,9 @@ public class RedisEmbeddedConfiguration {
             .redisExecProvider(customProvider)
             .port(6379)
             .build();
+
+    public static boolean useExternalRedis() {
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
+        return externalRedis != null;
+    }
 }

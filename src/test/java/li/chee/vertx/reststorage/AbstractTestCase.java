@@ -30,20 +30,16 @@ public abstract class AbstractTestCase extends TestVerticle {
         super.start();
     }
 
-    private static boolean useExternalRedis() {
-        String externalRedis = System.getenv("EXTERNAL_REDIS");
-        return externalRedis != null;
-    }
     @BeforeClass
     public static void config() {
-        if(!useExternalRedis()) {
+        if(!RedisEmbeddedConfiguration.useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.start();
         }
     }
 
     @AfterClass
     public static void stopRedis() {
-        if(!useExternalRedis()) {
+        if(!RedisEmbeddedConfiguration.useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.stop();
         }
     }
