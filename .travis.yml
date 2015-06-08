@@ -1,6 +1,0 @@
-language: java
-jdk:
-  - oraclejdk7
-services:
-  - redis-server
-env: EXTERNAL_REDIS=true
