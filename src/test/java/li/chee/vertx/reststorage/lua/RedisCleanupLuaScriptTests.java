@@ -1,7 +1,11 @@
 package li.chee.vertx.reststorage.lua;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
+import org.apache.commons.lang.text.StrSubstitutor;
+import org.apache.commons.lang.time.DurationFormatUtils;
+import org.junit.*;
+import redis.clients.jedis.Jedis;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -10,15 +14,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.commons.lang.text.StrSubstitutor;
-import org.apache.commons.lang.time.DurationFormatUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import redis.clients.jedis.Jedis;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertThat;
 
-@Ignore
 public class RedisCleanupLuaScriptTests {
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
@@ -31,9 +29,29 @@ public class RedisCleanupLuaScriptTests {
     private final static String prefixDeltaEtags = "delta:etags";
     private final static String expirableSet = "rest-storage:expirable";
 
+    protected static boolean useExternalRedis() {
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
+        return externalRedis != null;
+    }
+
+    @BeforeClass
+    public static void config() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.start();
+        }
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
+    }
+
     @Before
     public void connect() {
-        jedis = new Jedis("localhost");
+        jedis = JedisFactory.createJedis();
+        jedis.flushAll();
     }
 
     @After
@@ -73,7 +91,7 @@ public class RedisCleanupLuaScriptTests {
         String nowPlus1000sec = String.valueOf((System.currentTimeMillis() + 1000000));
         evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
         evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}", nowPlus1000sec);
-        Thread.sleep(10);
+        Thread.sleep(1000);
 
         // ACT
 
@@ -121,7 +139,7 @@ public class RedisCleanupLuaScriptTests {
         for (int i = 1; i <= 21000; i++) {
             evalScriptPut(":project:server:test:test1:test" + i, "{\"content\": \"test" + i + "\"}", i % 3 == 0 ? now : maxExpire);
         }
-        Thread.sleep(10);
+        Thread.sleep(100);
 
         // ACT
         long start = System.currentTimeMillis();
@@ -174,7 +192,6 @@ public class RedisCleanupLuaScriptTests {
 
         // ASSERT
         assertThat(jedis.zcount("rest-storage:collections:project:server:test:test1", getNowAsDouble(), MAX_EXPIRE_IN_MILLIS), equalTo(1000000l));
-
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })

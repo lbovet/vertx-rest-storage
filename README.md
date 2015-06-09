@@ -1,6 +1,8 @@
 vertx-rest-storage
 ==================
 
+[ ![Codeship Status for postit12/vertx-rest-storage](https://codeship.com/projects/29282ed0-ef1b-0132-1b5c-3628cb5d23b0/status?branch=master)](https://codeship.com/projects/84306)
+
 Persistence for REST resources in the filesystem or a redis database. 
 
 Stores resources in a hierarchical way according to their URI. It actually implements a generic CRUD REST service.
@@ -53,6 +55,16 @@ Dependencies
 ------------
 
 Redis persistence uses the redis-client busmod "de.marx-labs.redis-client". You must deploy it yourself.
+
+Use gradle with alternative repositories
+----------------------------------------
+As standard the default maven repositories are set.
+You can overwrite these repositories by setting these properties (`-Pproperty=value`):
+
+* `repository` this is the repository where resources are fetched
+* `uploadRepository` the repository used in `uploadArchives`
+* `repoUsername` the username for uploading archives
+* `repoPassword` the password for uploading archives
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lbovet/vertx-rest-storage/trend.png)](https://bitdeli.com/free "Bitdeli Badge")

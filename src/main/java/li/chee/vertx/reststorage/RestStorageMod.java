@@ -17,7 +17,7 @@ public class RestStorageMod extends Verticle {
         String storageName = config.getString("storage", "filesystem");
         int port = config.getNumber("port", 8989).intValue();
         String prefix = config.getString("prefix", "");
-        String storageAddress = config.getString("storageAddress");
+        String storageAddress = config.getString("storageAddress", "resource-storage");
         JsonObject editorConfig = config.getObject("editors");
         prefix = prefix.equals("/") ? "" : prefix;
 

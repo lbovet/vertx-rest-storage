@@ -1,11 +1,11 @@
 package li.chee.vertx.reststorage.lua;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
+import org.apache.commons.lang.StringUtils;
+import org.junit.*;
+import org.vertx.java.core.json.JsonObject;
+import redis.clients.jedis.Jedis;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -13,15 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import org.apache.commons.lang.StringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.vertx.java.core.json.JsonObject;
-import redis.clients.jedis.Jedis;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-@Ignore
 public class RedisPutLuaScriptTests {
 
     Jedis jedis = null;
@@ -32,9 +27,28 @@ public class RedisPutLuaScriptTests {
     private final static String RESOURCE = "resource";
     private final static String ETAG = "etag";
 
+    protected static boolean useExternalRedis() {
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
+        return externalRedis != null;
+    }
+
+    @BeforeClass
+    public static void config() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.start();
+        }
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
+    }
+
     @Before
     public void connect() {
-        jedis = new Jedis("localhost");
+        jedis = JedisFactory.createJedis();
     }
 
     @After

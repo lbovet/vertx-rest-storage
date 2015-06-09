@@ -1,10 +1,9 @@
 package li.chee.vertx.reststorage.lua;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
+import org.junit.*;
+import redis.clients.jedis.Jedis;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,13 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import redis.clients.jedis.Jedis;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.Assert.assertThat;
 
-@Ignore
 public class RedisGetLuaScriptTests {
 
     Jedis jedis = null;
@@ -29,9 +24,28 @@ public class RedisGetLuaScriptTests {
     private final static String TYPE_COLLECTION = "TYPE_COLLECTION";
     private final static String TYPE_RESOURCE = "TYPE_RESOURCE";
 
+    protected static boolean useExternalRedis() {
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
+        return externalRedis != null;
+    }
+
+    @BeforeClass
+    public static void config() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.start();
+        }
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
+    }
+
     @Before
     public void connect() {
-        jedis = new Jedis("localhost");
+        jedis = JedisFactory.createJedis();
     }
 
     @After

@@ -29,6 +29,30 @@ signing {
 	sign configurations.archives
 }
 
+if (!project.hasProperty('repoUsername')) {
+    ext.repoUsername = 'randomUsername'
+} else {
+    println 'got property repoUsername: ' + repoUsername
+}
+
+if (!project.hasProperty('repoPassword')) {
+    ext.repoPassword = 'randomPassword'
+} else {
+    println 'got property repoPassword: ' + repoPassword
+}
+
+if(!project.hasProperty('uploadRepository')) {
+    ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+} else {
+    println 'found custom uploadRepository: ' + uploadRepository
+}
+
+if(!project.hasProperty('snapshotRepository')) {
+    ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+} else {
+    println 'found custom snapshotRepository: ' + snapshotRepository
+}
+
 uploadArchives {
 	group 'build'
 	description = "Does a maven deploy of archives artifacts"
@@ -40,38 +64,12 @@ uploadArchives {
 
             configuration = configurations.archives
 
-            if (!project.hasProperty('repoUsername')) {
-                println 'did not got property repoUsername: ' + repoUsername
-                ext.repoUsername = ''
-            } else {
-                println 'got property repoUsername: ' + repoUsername
+            repository(url: "$uploadRepository") {
+                authentication(userName: "$repoUsername", password: "$repoPassword")
             }
 
-            if (!project.hasProperty('repoPassword')) {
-                println 'did not got property repoPassword: ' + repoPassword
-                ext.repoPassword = ''
-            } else {
-                println 'got property repoPassword: ' + repoPassword
-            }
-
-            if(project.hasProperty('customUploadRepository')) {
-                println 'found custom repo: ' + customUploadRepository
-                repository(url: "$customUploadRepository") {
-                    authentication(userName: "$repoUsername", password: "$repoPassword")
-                }
-
-                snapshotRepository(url: "$customUploadRepository") {
-                    authentication(userName: "$repoUsername", password: "$repoPassword")
-                }
-            } else {
-                println 'didnt found custom repo'
-                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: repoUsername, password: repoPassword)
-                }
-
-                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: repoUsername, password: repoPassword)
-                }
+            snapshotRepository(url: "$snapshotRepository") {
+                authentication(userName: "$repoUsername", password: "$repoPassword")
             }
 
 			if (isReleaseVersion) {
