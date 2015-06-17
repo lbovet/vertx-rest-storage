@@ -9,3 +9,7 @@ mods/
 /bin
 /vertx_classpath.txt
 
+# Intellij
+.idea/
+*.iml
+*.iws

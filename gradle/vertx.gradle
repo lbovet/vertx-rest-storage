@@ -52,16 +52,40 @@ repositories {
     // are concurrent builds
     mavenLocal()
   }
-  //maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-  maven { url 'http://archiva.pnet.ch/archiva/repository/swisspost/' }  
+
+  try {
+    maven { url "$repository" }
+    println 'use custom repository: $repository'
+  } catch(Exception e) {
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    println 'use standard repository'
+  }
   mavenCentral()
 }
 
 dependencies {
-  provided "io.vertx:vertx-core:$vertxVersion"
-  provided "io.vertx:vertx-platform:$vertxVersion"
-  testCompile "junit:junit:$junitVersion"
-  testCompile "io.vertx:testtools:$toolsVersion"
+    provided "io.vertx:vertx-core:$vertxVersion"
+    provided "io.vertx:vertx-platform:$vertxVersion"
+    
+    compile "commons-lang:commons-lang:$commonslangVersion"
+    compile "commons-codec:commons-codec:$commonscodecVersion"
+//    compile 'io.vertx:mod-redis-client:1.1.3'
+    
+    runtime "commons-lang:commons-lang:$commonslangVersion"
+    runtime "commons-codec:commons-codec:$commonscodecVersion"
+//    runtime 'io.vertx:mod-redis-client:1.1.3'
+
+    testCompile "redis.clients:jedis:$jedisVersion"
+    testCompile "junit:junit:$junitVersion"
+    testCompile "io.vertx:testtools:$toolsVersion"
+    testCompile 'com.github.kstyrc:embedded-redis:0.6'
+    testCompile 'com.jayway.restassured:rest-assured:2.4.1'
+    testCompile 'org.springframework:spring-context:4.1.0.RELEASE'
+    testCompile 'org.springframework:spring-jdbc:4.1.0.RELEASE'
+    testCompile 'io.vertx:mod-redis-client:1.1.3'
+    testCompile 'com.jayway.awaitility:awaitility-scala:1.6.3'
+    
+    testRuntime 'com.github.kstyrc:embedded-redis:0.6'
 }
 
 // This sets up the classpath for the script itself
@@ -74,8 +98,14 @@ buildscript {
       // are concurrent builds
       mavenLocal()
     }
-    //maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-    maven { url 'http://archiva.pnet.ch/archiva/repository/swisspost/' }    
+
+    try {
+      maven { url "$repository" }
+      println "use custom repository: $repository"
+    } catch(Exception e) {
+      maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+      println 'use standard repository'
+    }
     mavenCentral()
   }
 
@@ -85,10 +115,8 @@ buildscript {
     classpath "io.vertx:vertx-hazelcast:$vertxVersion"
 
     // Extra classpath for Vert.x
-
     // Users can be Vert.x platform classpath files (e.g. langs.properties) in either src/main/platform_lib
     // or src/main/resources/platform_lib (if they want it in the module for fatjars)
-    
   }
 }
 
@@ -96,6 +124,14 @@ sourceSets {
   main {
     compileClasspath = compileClasspath + configurations.provided
   }
+}
+
+compileJava {
+  options.encoding = "UTF-8"
+}
+
+javadoc {
+  options.encoding = "UTF-8"
 }
 
 task copyMod( type:Copy, dependsOn: 'classes', description: 'Assemble the module into the local mods directory' ) {
@@ -160,7 +196,7 @@ task runMod(description: 'Run the module') << {
   // We also init here - this means for single module builds the user doesn't have to explicitly init -
   // they can just do runMod
   doInit()
-  args = ['runmod', moduleName]
+  def args = ['runmod', moduleName]
   def args2 = runModArgs.split("\\s+")
   args.addAll(args2)
   Starter.main(args as String[])
@@ -207,6 +243,7 @@ def setSysProps() {
 }
 
 def loadProperties(String sourceFileName) {
+    println "load properties $sourceFileName"
   def config = new Properties()
   def propFile = new File(sourceFileName)
   if (propFile.canRead()) {
@@ -221,10 +258,10 @@ def loadProperties(String sourceFileName) {
 plugins.withType(IdeaPlugin) {
   idea {
     module {
-      scopes.PROVIDED.plus += configurations.provided
-      scopes.COMPILE.minus += configurations.provided
-      scopes.TEST.minus += configurations.provided
-      scopes.RUNTIME.minus += configurations.provided
+      scopes.PROVIDED.plus += [ configurations.provided ]
+      scopes.COMPILE.minus += [ configurations.provided ]
+      scopes.TEST.minus += [ configurations.provided ]
+      scopes.RUNTIME.minus += [ configurations.provided ]
     }
   }
 }
