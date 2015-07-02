@@ -12,18 +12,6 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 
 public class CrudTest extends AbstractTestCase {
 
-    @Before
-    public void setPath() {
-        RestAssured.basePath = "";
-    }
-
-    @After
-    public void deleteCrudPath() {
-        RestAssured.basePath = "";
-        delete("/");
-    }
-
-
     @Test
     public void testPutGetDelete() {
         with().body("{ \"foo\": \"bar\" }").put("res");

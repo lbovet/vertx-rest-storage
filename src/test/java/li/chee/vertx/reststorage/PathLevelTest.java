@@ -10,11 +10,6 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 
 public class PathLevelTest extends AbstractTestCase {
 
-    @Before
-    public void setBase() {
-        RestAssured.basePath = "";
-    }
-
     @Test
     public void testTryToPutResourceOverCollection() {
 

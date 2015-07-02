@@ -17,17 +17,6 @@ public class EtagTest extends AbstractTestCase {
     private final String EXPIRE_AFTER_HEADER = "x-expire-after";
     private final String MAX_EXPIRE_IN_MILLIS = "9999999999999";
 
-    @Before
-    public void setPath() {
-        RestAssured.basePath = "/etags";
-    }
-
-    @After
-    public void deleteTestResources() {
-        RestAssured.basePath = "";
-        delete("/etags");
-    }
-
     @Test
     public void testEtag() {
         with().body("{ \"foo\": \"bar\" }").put("resources/res1");
