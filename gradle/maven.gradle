@@ -66,12 +66,12 @@ uploadArchives {
                 name 'vertx-rest-storage'
                 packaging 'zip'
                 description 'Stores resources in a hierarchical way according to their URI. It actually implements a generic CRUD REST service.'
-                url 'https://github.com/lbovet/vertx-rest-storage'
+                url 'https://github.com/swisspush/vertx-rest-storage'
 
                 scm {
-                    url 'scm:git@github.com:postit12/vertx-rest-storage.git'
-                    connection 'scm:git@github.com:postit12/vertx-rest-storage.git'
-                    developerConnection 'scm:git@github.com:postit12/vertx-rest-storage.git'
+                    url 'scm:git@github.com:swisspush/vertx-rest-storage.git'
+                    connection 'scm:git@github.com:swisspush/vertx-rest-storage.git'
+                    developerConnection 'scm:git@github.com:swisspush/vertx-rest-storage.git'
                 }
 
                 licenses {
