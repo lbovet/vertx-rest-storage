@@ -25,7 +25,7 @@ apply plugin: 'signing'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
 signing {
-	required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+	// required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
 	sign configurations.archives
 }
 
@@ -57,11 +57,14 @@ uploadArchives {
     repositories {
         mavenDeployer {
             beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+			
+			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        		authentication(userName: ossrhUsername, password: ossrhPassword)
+      		}
 
-            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: sonatypeUsername, password: sonatypePassword)
-            }
-
+      		snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+        		authentication(userName: ossrhUsername, password: ossrhPassword)
+      		}
             pom.project {
                 name 'vertx-rest-storage'
                 packaging 'zip'
