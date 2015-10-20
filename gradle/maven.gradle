@@ -57,14 +57,15 @@ uploadArchives {
     repositories {
         mavenDeployer {
             beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-			
-			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-        		authentication(userName: ossrhUsername, password: ossrhPassword)
-      		}
+		
+			repository(url: "$uploadRepository") {
+                authentication(userName: "$repoUsername", password: "$repoPassword")
+            }
 
-      		snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-        		authentication(userName: ossrhUsername, password: ossrhPassword)
-      		}
+            snapshotRepository(url: "$snapshotRepository") {
+                authentication(userName: "$repoUsername", password: "$repoPassword")
+            }
+	
             pom.project {
                 name 'vertx-rest-storage'
                 packaging 'zip'
