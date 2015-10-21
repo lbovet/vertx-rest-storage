@@ -22,11 +22,10 @@ apply plugin: 'signing'
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // maven task configuration
 
-ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
-
 signing {
-	// required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
-	sign configurations.archives
+    if (project.hasProperty('signArchives')) {
+	    sign configurations.archives
+     }
 }
 
 if (!project.hasProperty('repoUsername')) {
