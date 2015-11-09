@@ -129,4 +129,4 @@ end
 evalshaPlusRedis = result.clone.delete_if{|key,value| !key.match(/^evalsha.*/)}.values.inject{|sum,a| sum + a}
 onlyRedis = result.clone.delete_if{|key,value| key.match(/^evalsha.*/)}.values.inject{|sum,a| sum + a}
 puts "time in redis calls: " + onlyRedis.to_s
-puts "time in lua: " + (evalshaPlusRedis-onlyRedis).to_s
+puts "time in lua: " + (evalshaPlusRedis.to_i-onlyRedis.to_i).to_s
