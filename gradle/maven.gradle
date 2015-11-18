@@ -52,6 +52,18 @@ if(!project.hasProperty('snapshotRepository')) {
     println 'found custom snapshotRepository: ' + snapshotRepository
 }
 
+if (!project.hasProperty('sonatypeUsername')) {
+    ext.sonatypeUsername = 'sonatypeUsername'
+} else {
+    println 'got property sonatypeUsername: ' + repoUsername
+}
+
+if (!project.hasProperty('sonatypePassword')) {
+    ext.sonatypePassword = 'sonatypePassword'
+} else {
+    println 'got property sonatypePassword: ' + repoPassword
+}
+
 uploadArchives {
     repositories {
         mavenDeployer {
