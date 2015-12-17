@@ -1,64 +1,21 @@
 package li.chee.vertx.reststorage.lua;
 
-import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.commons.lang.time.DurationFormatUtils;
-import org.junit.*;
-import redis.clients.jedis.Jedis;
+import org.junit.Ignore;
+import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-public class RedisCleanupLuaScriptTests {
+public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
-
-    Jedis jedis = null;
-
-    private final static String prefixResources = "rest-storage:resources";
-    private final static String prefixCollections = "rest-storage:collections";
-    private final static String prefixDeltaResources = "delta:resources";
-    private final static String prefixDeltaEtags = "delta:etags";
-    private final static String expirableSet = "rest-storage:expirable";
-
-    protected static boolean useExternalRedis() {
-        String externalRedis = System.getenv("EXTERNAL_REDIS");
-        return externalRedis != null;
-    }
-
-    @BeforeClass
-    public static void config() {
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.start();
-        }
-    }
-
-    @AfterClass
-    public static void stopRedis() {
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.stop();
-        }
-    }
-
-    @Before
-    public void connect() {
-        jedis = JedisFactory.createJedis();
-        jedis.flushAll();
-    }
-
-    @After
-    public void disconnnect() {
-        jedis.flushAll();
-        jedis.close();
-    }
 
     @Test
     public void cleanupAllExpiredAmount2() throws InterruptedException {
@@ -268,38 +225,5 @@ public class RedisCleanupLuaScriptTests {
             }
         }
                 );
-    }
-
-    private String readScript(String scriptFileName, boolean stripLogNotice) {
-        BufferedReader in = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream(scriptFileName)));
-        StringBuilder sb;
-        try {
-            sb = new StringBuilder();
-            String line;
-            while ((line = in.readLine()) != null) {
-                if (stripLogNotice && line.contains("redis.LOG_NOTICE,")) {
-                    continue;
-                }
-                sb.append(line + "\n");
-            }
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            try {
-                in.close();
-            } catch (IOException e) {
-                // Ignore
-            }
-        }
-        return sb.toString();
-    }
-
-    private double getNowAsDouble() {
-        return Double.valueOf(System.currentTimeMillis()).doubleValue();
-    }
-
-    private String getNowAsString() {
-        return String.valueOf(System.currentTimeMillis());
     }
 }

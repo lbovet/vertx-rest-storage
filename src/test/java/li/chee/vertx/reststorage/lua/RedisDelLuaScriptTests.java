@@ -1,60 +1,17 @@
 package li.chee.vertx.reststorage.lua;
 
-import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
-import org.junit.*;
-import redis.clients.jedis.Jedis;
+import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.UUID;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-public class RedisDelLuaScriptTests {
+public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
 
-    Jedis jedis = null;
-
-    private final static String prefixResources = "rest-storage:resources";
-    private final static String prefixCollections = "rest-storage:collections";
-    private final static String prefixDeltaResources = "delta:resources";
-    private final static String prefixDeltaEtags = "delta:etags";
-    private final static String expirableSet = "rest-storage:expirable";
     private final static String RESOURCE = "resource";
-
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
-
-    protected static boolean useExternalRedis() {
-        String externalRedis = System.getenv("EXTERNAL_REDIS");
-        return externalRedis != null;
-    }
-
-    @BeforeClass
-    public static void config() {
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.start();
-        }
-    }
-
-    @AfterClass
-    public static void stopRedis() {
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.stop();
-        }
-    }
-
-    @Before
-    public void connect() {
-        jedis = JedisFactory.createJedis();
-    }
-
-    @After
-    public void disconnnect() {
-        jedis.flushAll();
-        jedis.close();
-    }
 
     @Test
     public void deleteResource2BranchesDeleteOnRootNode() {
@@ -351,35 +308,5 @@ public class RedisDelLuaScriptTests {
             }
         }
                 );
-    }
-
-    private String readScript(String scriptFileName) {
-        BufferedReader in = new BufferedReader(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream(scriptFileName)));
-        StringBuilder sb;
-        try {
-            sb = new StringBuilder();
-            String line;
-            while ((line = in.readLine()) != null) {
-                sb.append(line + "\n");
-            }
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            try {
-                in.close();
-            } catch (IOException e) {
-                // Ignore
-            }
-        }
-        return sb.toString();
-    }
-
-    private double getNowAsDouble() {
-        return Double.valueOf(System.currentTimeMillis()).doubleValue();
-    }
-
-    private String getNowAsString() {
-        return String.valueOf(System.currentTimeMillis());
     }
 }
