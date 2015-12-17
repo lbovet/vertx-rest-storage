@@ -1,9 +1,10 @@
 package li.chee.vertx.reststorage.lua;
 
+import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.commons.lang.time.DurationFormatUtils;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
+import redis.clients.jedis.Jedis;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,6 +17,39 @@ import static org.junit.Assert.assertThat;
 public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
+
+    Jedis jedis = null;
+
+    protected static boolean useExternalRedis() {
+        String externalRedis = System.getenv("EXTERNAL_REDIS");
+        return externalRedis != null;
+    }
+
+    @BeforeClass
+    public static void config() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.start();
+        }
+    }
+
+    @AfterClass
+    public static void stopRedis() {
+        if(!useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
+    }
+
+    @Before
+    public void connect() {
+        jedis = JedisFactory.createJedis();
+        jedis.flushAll();
+    }
+
+    @After
+    public void disconnnect() {
+        jedis.flushAll();
+        jedis.close();
+    }
 
     @Test
     public void cleanupAllExpiredAmount2() throws InterruptedException {
@@ -155,22 +189,22 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
     private void evalScriptPut(final String resourceName1, final String resourceValue1, final String expire) {
         String putScript = readScript("put.lua", true);
         jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("false");
-                add(expire);
-                add("9999999999999");
-                add(resourceValue1);
-                add(UUID.randomUUID().toString());
-            }
-        }
-                );
+                    {
+                        add(resourceName1);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(expirableSet);
+                        add("false");
+                        add(expire);
+                        add("9999999999999");
+                        add(resourceValue1);
+                        add(UUID.randomUUID().toString());
+                    }
+                }
+        );
     }
 
     private Object evalScriptCleanup(final long minscore, final long now) {
@@ -190,40 +224,40 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
         StrSubstitutor sub = new StrSubstitutor(values, "--%(", ")");
         String cleanupScript = sub.replace(readScript("cleanup.lua", stripLogNotice));
         return jedis.eval(cleanupScript, new ArrayList(), new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(prefixDeltaResources);
-                add(prefixDeltaEtags);
-                add(expirableSet);
-                add(String.valueOf(minscore));
-                add(String.valueOf(MAX_EXPIRE_IN_MILLIS));
-                add(String.valueOf(now));
-                add(String.valueOf(bulkSize));
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(prefixDeltaResources);
+                        add(prefixDeltaEtags);
+                        add(expirableSet);
+                        add(String.valueOf(minscore));
+                        add(String.valueOf(MAX_EXPIRE_IN_MILLIS));
+                        add(String.valueOf(now));
+                        add(String.valueOf(bulkSize));
 
-            }
-        }
-                );
+                    }
+                }
+        );
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
     private Object evalScriptDel(final String resourceName, final double maxscore) {
         String delScript = readScript("del.lua", false);
         return jedis.eval(delScript, new ArrayList() {
-            {
-                add(resourceName);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(prefixDeltaResources);
-                add(prefixDeltaEtags);
-                add(expirableSet);
-                add(getNowAsString());
-                add(String.valueOf(maxscore));
-            }
-        }
-                );
+                    {
+                        add(resourceName);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(prefixDeltaResources);
+                        add(prefixDeltaEtags);
+                        add(expirableSet);
+                        add(getNowAsString());
+                        add(String.valueOf(maxscore));
+                    }
+                }
+        );
     }
 }
