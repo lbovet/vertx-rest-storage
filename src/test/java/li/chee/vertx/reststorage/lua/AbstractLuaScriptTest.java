@@ -19,6 +19,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+/**
+ * Abstract class containing common methods for LuaScript tests
+ */
 public abstract class AbstractLuaScriptTest {
 
     final static String prefixResources = "rest-storage:resources";
