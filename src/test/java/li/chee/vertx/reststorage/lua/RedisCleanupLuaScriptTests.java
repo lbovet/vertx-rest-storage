@@ -44,9 +44,10 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
     public void cleanupOneExpiredAmount2() throws InterruptedException {
 
         // ARRANGE
-        String now = String.valueOf(System.currentTimeMillis());
-        String nowPlus1000sec = String.valueOf((System.currentTimeMillis() + 1000000));
-        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
+        long now = System.currentTimeMillis();
+        String nowStr = String.valueOf(now);
+        String nowPlus1000sec = String.valueOf(now + 1000000);
+        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", nowStr);
         evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}", nowPlus1000sec);
         Thread.sleep(1000);
 
