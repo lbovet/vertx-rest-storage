@@ -29,14 +29,14 @@ public abstract class AbstractLuaScriptTest {
 
     Jedis jedis = null;
 
-//    @BeforeClass
+    @BeforeClass
     public static void config() {
         if(!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.start();
         }
     }
 
-//    @AfterClass
+    @AfterClass
     public static void stopRedis() {
         if(!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.stop();
