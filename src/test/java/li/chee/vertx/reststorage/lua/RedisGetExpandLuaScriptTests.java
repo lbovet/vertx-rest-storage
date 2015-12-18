@@ -29,7 +29,6 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:item2", "{\"content\": \"content_2\"}");
         evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
 
-
         // ACT
         List<String> subResources = Arrays.asList("item2", "item1", "item3");
         List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
@@ -42,6 +41,22 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @Test
+    public void testGetExpandEmptySubresources() {
+
+        // ARRANGE
+        evalScriptPut(":project:server:test:item1", "{\"content\": \"content_1\"}");
+        evalScriptPut(":project:server:test:item2", "{\"content\": \"content_2\"}");
+        evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
+
+        // ACT
+        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", new ArrayList<String>());
+
+        // ASSERT
+        assertNotNull(value);
+        assertThat(value.size(), equalTo(0));
+    }
+
+    @Test
     public void testGetExpandWithSubCollections() {
 
         // ARRANGE
@@ -50,7 +65,6 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
         evalScriptPut(":project:server:test:sub:sub1", "{\"content\": \"content_sub_1\"}");
         evalScriptPut(":project:server:test:sub:sub2", "{\"content\": \"content_sub_2\"}");
-
 
         // ACT
         List<String> subResources = Arrays.asList("sub/", "item1", "item2", "item3");
@@ -70,7 +84,6 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         // ARRANGE
         evalScriptPut(":project:server:test:sub:subsub:item1", "{\"content\": \"content_sub_1\"}");
         evalScriptPut(":project:server:test:sub:subsub:item2", "{\"content\": \"content_sub_2\"}");
-
 
         // ACT
         List<String> subResources = Arrays.asList("sub/");
@@ -107,7 +120,6 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:anothersub:sub3", "{\"content\": \"content_sub_3\"}");
         evalScriptPut(":project:server:test:anothersub:sub4", "{\"content\": \"content_sub_4\"}");
 
-
         // ACT
         List<String> subResources = Arrays.asList("sub/", "anothersub/");
         List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
@@ -126,7 +138,6 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:item2", "{\"content\": \"content_2\"}");
         evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
 
-
         // ACT
         List<String> subResources = Arrays.asList("item2x", "item1x", "item3x");
         List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
@@ -143,7 +154,6 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:item1", "{\"content\": \"content_1\"}");
         evalScriptPut(":project:server:test:item2", "{\"content\": \"content_2\"}");
         evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
-
 
         // ACT
         List<String> subResources = Arrays.asList("item3", "invalidItem", "item1");
