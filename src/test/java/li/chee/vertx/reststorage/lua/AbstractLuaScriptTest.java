@@ -56,7 +56,7 @@ public abstract class AbstractLuaScriptTest {
     }
 
     @After
-    public void disconnnect() {
+    public void disconnect() {
         jedis.flushAll();
         jedis.close();
     }
