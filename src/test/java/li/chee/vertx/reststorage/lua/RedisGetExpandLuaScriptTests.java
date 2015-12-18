@@ -8,6 +8,7 @@
 
 package li.chee.vertx.reststorage.lua;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -237,7 +238,7 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
                         add(expirableSet);
                         add(timestamp);
                         add("9999999999999");
-                        add(String.join(";", subResources));
+                        add(StringUtils.join(subResources, ";"));
                         add(String.valueOf(subResources.size()));
                     }
                 }
