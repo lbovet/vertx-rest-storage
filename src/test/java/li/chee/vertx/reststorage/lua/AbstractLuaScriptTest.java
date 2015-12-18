@@ -32,7 +32,7 @@ public abstract class AbstractLuaScriptTest {
     final static String prefixDeltaResources = "delta:resources";
     final static String prefixDeltaEtags = "delta:etags";
 
-    public static final String MAX_EXPIRE = "9999999999999";
+    static final String MAX_EXPIRE = "9999999999999";
 
     Jedis jedis = null;
 
@@ -140,4 +140,36 @@ public abstract class AbstractLuaScriptTest {
         );
     }
 
+    protected Object evalScriptGet(final String resourceName) {
+        return evalScriptGet(resourceName, String.valueOf(System.currentTimeMillis()));
+    }
+
+    protected Object evalScriptGet(final String resourceName, final String timestamp) {
+        return evalScriptGet(resourceName, timestamp, "", "");
+    }
+
+    protected Object evalScriptGetOffsetCount(final String resourceName1, final String offset, final String count) {
+        return evalScriptGet(resourceName1, String.valueOf(System.currentTimeMillis()), offset, count);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
+    protected Object evalScriptGet(final String resourceName, final String timestamp, final String offset, final String count) {
+        String getScript = readScript("get.lua");
+        return jedis.eval(getScript, new ArrayList() {
+                    {
+                        add(resourceName);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(expirableSet);
+                        add(timestamp);
+                        add("9999999999999");
+                        add(offset);
+                        add(count);
+                    }
+                }
+        );
+    }
 }

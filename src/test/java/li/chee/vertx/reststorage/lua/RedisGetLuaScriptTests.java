@@ -2,9 +2,7 @@ package li.chee.vertx.reststorage.lua;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
@@ -162,7 +160,7 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:test1:test5", "{\"content\": \"test/test1/test5\"}");
 
         // ACT
-        List<String> valuesTest1 = (List<String>) evalScriptGet(":project:server:test:test1", "bla", "blo");
+        List<String> valuesTest1 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "bla", "blo");
 
         // ASSERT
         assertThat(valuesTest1.size(), equalTo(5));
@@ -179,7 +177,7 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:test1:test5", "{\"content\": \"test/test1/test5\"}");
 
         // ACT
-        List<String> valuesTest1 = (List<String>) evalScriptGet(":project:server:test:test1", "1", "2");
+        List<String> valuesTest1 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "1", "2");
 
         // ASSERT
         assertThat(valuesTest1.size(), equalTo(3));
@@ -188,7 +186,7 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(valuesTest1.get(2), equalTo("test4"));
         
         // ACT
-        List<String> valuesTest2 = (List<String>) evalScriptGet(":project:server:test:test1", "0", "4");
+        List<String> valuesTest2 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "0", "4");
 
         // ASSERT
         assertThat(valuesTest2.size(), equalTo(5));
@@ -199,7 +197,7 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(valuesTest2.get(4), equalTo("test5"));
         
         // ACT
-        List<String> valuesTest3 = (List<String>) evalScriptGet(":project:server:test:test1", "0", "-1");
+        List<String> valuesTest3 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "0", "-1");
 
         // ASSERT
         assertThat(valuesTest3.size(), equalTo(5));
@@ -220,7 +218,7 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:test1:test5", "{\"content\": \"test/test1/test5\"}");
 
         // ACT
-        List<String> valuesTest1 = (List<String>) evalScriptGet(":project:server:test:test1", "-1", "2");
+        List<String> valuesTest1 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "-1", "2");
 
         // ASSERT
         assertThat(valuesTest1.size(), equalTo(5));
@@ -231,7 +229,7 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(valuesTest1.get(4), equalTo("test5"));
         
         // ACT
-        List<String> valuesTest2 = (List<String>) evalScriptGet(":project:server:test:test1", "0", "9");
+        List<String> valuesTest2 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "0", "9");
 
         // ASSERT
         assertThat(valuesTest2.size(), equalTo(5));
@@ -242,72 +240,10 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(valuesTest2.get(4), equalTo("test5"));
         
         // ACT
-        List<String> valuesTest3 = (List<String>) evalScriptGet(":project:server:test:test1", "9", "4");
+        List<String> valuesTest3 = (List<String>) evalScriptGetOffsetCount(":project:server:test:test1", "9", "4");
 
         // ASSERT
         assertThat(valuesTest3.size(), equalTo(1));
         assertThat(valuesTest3.get(0), equalTo(TYPE_COLLECTION));
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptGet(final String resourceName1) {
-        String getScript = readScript("get.lua");
-        return jedis.eval(getScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add(String.valueOf(System.currentTimeMillis()));
-                add("9999999999999");
-                add("bla");
-                add("bla");
-            }
-        }
-                );
-    }
-    
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptGet(final String resourceName1, final String offset, final String count) {
-        String getScript = readScript("get.lua");
-        return jedis.eval(getScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add(String.valueOf(System.currentTimeMillis()));
-                add("9999999999999");
-                add(offset);
-                add(count);
-                
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptGet(final String resourceName1, final String timestamp) {
-        String getScript = readScript("get.lua");
-        return jedis.eval(getScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add(timestamp);
-                add("9999999999999");
-            }
-        }
-                );
     }
 }

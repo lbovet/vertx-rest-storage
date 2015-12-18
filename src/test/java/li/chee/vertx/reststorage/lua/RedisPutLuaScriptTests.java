@@ -64,7 +64,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
     public void putResourceMergeOnEmpty() {
 
         // ACT
-        String value = (String) evalScriptPutMerge(":project:server:test:test1:test2", "{\"content\": \"test_test1_test3\"}");
+        evalScriptPutMerge(":project:server:test:test1:test2", "{\"content\": \"test_test1_test3\"}");
 
         // ASSERT
         String result = jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE);
@@ -77,7 +77,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test_test1_test2\"}");
-        String value = (String) evalScriptPutMerge(":project:server:test:test1:test2", "{\"content\": \"test_test1_test3\"}");
+        evalScriptPutMerge(":project:server:test:test1:test2", "{\"content\": \"test_test1_test3\"}");
 
         // ASSERT
         String result = jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE);
@@ -285,44 +285,6 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
                         add("9999999999999");
                         add(resourceValue1);
                         add(UUID.randomUUID().toString());
-                    }
-                }
-        );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptGet(final String resourceName1) {
-        String getScript = readScript("get.lua");
-        return jedis.eval(getScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add(String.valueOf(System.currentTimeMillis()));
-                add("9999999999999");
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptGet(final String resourceName1, final String timestamp) {
-        String getScript = readScript("get.lua");
-        return jedis.eval(getScript, new ArrayList() {
-                    {
-                        add(resourceName1);
-                    }
-                }, new ArrayList() {
-                    {
-                        add(prefixResources);
-                        add(prefixCollections);
-                        add(expirableSet);
-                        add(timestamp);
-                        add("9999999999999");
                     }
                 }
         );

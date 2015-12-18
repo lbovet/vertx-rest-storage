@@ -219,27 +219,6 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptDel(final String resourceName, final double maxscore) {
-        String delScript = readScript("del.lua", false);
-        return jedis.eval(delScript, new ArrayList() {
-                    {
-                        add(resourceName);
-                    }
-                }, new ArrayList() {
-                    {
-                        add(prefixResources);
-                        add(prefixCollections);
-                        add(prefixDeltaResources);
-                        add(prefixDeltaEtags);
-                        add(expirableSet);
-                        add(getNowAsString());
-                        add(String.valueOf(maxscore));
-                    }
-                }
-        );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
     private void evalScriptPutNoReturn(final String resourceName, final String resourceValue, final String expire) {
         String putScript = readScript("put.lua", true);
         jedis.eval(putScript, new ArrayList() {
