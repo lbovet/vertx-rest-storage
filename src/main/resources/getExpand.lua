@@ -59,4 +59,4 @@ for i=1,subResourcesCount do
     end
 end
 
-return result
+return cjson.encode(result)
