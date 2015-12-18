@@ -46,7 +46,7 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @After
-    public void disconnnect() {
+    public void disconnect() {
         jedis.flushAll();
         jedis.close();
     }
