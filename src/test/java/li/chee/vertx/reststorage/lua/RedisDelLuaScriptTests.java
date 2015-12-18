@@ -206,50 +206,6 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1) {
-        String putScript = readScript("put.lua");
-        jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("false");
-                add("9999999999999");
-                add("9999999999999");
-                add(resourceValue1);
-                add(UUID.randomUUID().toString());
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1, final String expire) {
-        String putScript = readScript("put.lua");
-        jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("false");
-                add(expire);
-                add("9999999999999");
-                add(resourceValue1);
-                add(UUID.randomUUID().toString());
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
     private Object evalScriptGet(final String resourceName1, final String timestamp) {
         String getScript = readScript("get.lua");
         return jedis.eval(getScript, new ArrayList() {

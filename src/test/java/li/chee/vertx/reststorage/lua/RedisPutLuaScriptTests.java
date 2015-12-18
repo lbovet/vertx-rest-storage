@@ -90,9 +90,9 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         String originalContent = "{\"content\": \"originalContent\"}";
-        String value = evalScriptPut(":project:server:test:test1:test2", originalContent, "myFancyEtagValue");
+        String value = evalScriptPut(":project:server:test:test1:test2", originalContent, AbstractLuaScriptTest.MAX_EXPIRE, "myFancyEtagValue");
         String modifiedContent = "{\"content\": \"modifiedContent\"}";
-        String value2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, "myFancyEtagValue");
+        String value2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, AbstractLuaScriptTest.MAX_EXPIRE, "myFancyEtagValue");
 
         // ASSERT
         assertThat(value, is(not(equalTo("notModified"))));
@@ -272,40 +272,6 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
     private Object evalScriptPutMerge(final String resourceName1, final String resourceValue1) {
         String putScript = readScript("put.lua");
         return jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("true");
-                add("9999999999999");
-                add("9999999999999");
-                add(resourceValue1);
-                add(UUID.randomUUID().toString());
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private String evalScriptPut(final String resourceName1, final String resourceValue1) {
-        return evalScriptPut(resourceName1, resourceValue1, null);
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private String evalScriptPut(final String resourceName1, final String resourceValue1, final String etag) {
-        String putScript = readScript("put.lua");
-        String etagTmp = null;
-        if(etag != null && !etag.isEmpty()){
-            etagTmp = etag;
-        } else {
-            etagTmp = UUID.randomUUID().toString();
-        }
-        final String etagValue = etagTmp;
-        return (String) jedis.eval(putScript, new ArrayList() {
                     {
                         add(resourceName1);
                     }
@@ -314,11 +280,11 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
                         add(prefixResources);
                         add(prefixCollections);
                         add(expirableSet);
-                        add("false");
+                        add("true");
                         add("9999999999999");
                         add("9999999999999");
                         add(resourceValue1);
-                        add(etagValue);
+                        add(UUID.randomUUID().toString());
                     }
                 }
         );
@@ -347,18 +313,18 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
     private Object evalScriptGet(final String resourceName1, final String timestamp) {
         String getScript = readScript("get.lua");
         return jedis.eval(getScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add(timestamp);
-                add("9999999999999");
-            }
-        }
-                );
+                    {
+                        add(resourceName1);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(expirableSet);
+                        add(timestamp);
+                        add("9999999999999");
+                    }
+                }
+        );
     }
 }
