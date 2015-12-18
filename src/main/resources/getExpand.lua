@@ -43,7 +43,7 @@ for i=1,subResourcesCount do
         local colPath = collectionsPrefix..path..sep..subResName
         if redis.call('exists',colPath) == 1 then
             local colMembers = redis.call('zrangebyscore',colPath, timestamp, maxtime)
-            table.insert(result, cjson.encode(colMembers))
+            table.insert(result, {subResName, cjson.encode(colMembers)})
         end
     else
         local resPath = resourcesPrefix..path..sep..subResName
@@ -52,7 +52,7 @@ for i=1,subResourcesCount do
             if score == nil or score > timestamp then
                 local res = (redis.call('hget',resPath,'resource'))
                 if(res) then
-                    table.insert(result, res)
+                    table.insert(result, {subResName, res})
                 end
             end
         end

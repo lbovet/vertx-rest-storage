@@ -31,13 +31,16 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         List<String> subResources = Arrays.asList("item2", "item1", "item3");
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(3));
-        assertThat(value.get(0), equalTo("{\"content\": \"content_2\"}"));
-        assertThat(value.get(1), equalTo("{\"content\": \"content_1\"}"));
-        assertThat(value.get(2), equalTo("{\"content\": \"content_3\"}"));
+        assertThat(value.get(0).get(0), equalTo("item2"));
+        assertThat(value.get(0).get(1), equalTo("{\"content\": \"content_2\"}"));
+        assertThat(value.get(1).get(0), equalTo("item1"));
+        assertThat(value.get(1).get(1), equalTo("{\"content\": \"content_1\"}"));
+        assertThat(value.get(2).get(0), equalTo("item3"));
+        assertThat(value.get(2).get(1), equalTo("{\"content\": \"content_3\"}"));
     }
 
     @Test
@@ -49,7 +52,7 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
 
         // ACT
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", new ArrayList<String>());
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", new ArrayList<String>());
 
         // ASSERT
         assertNotNull(value);
@@ -68,14 +71,18 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         List<String> subResources = Arrays.asList("sub/", "item1", "item2", "item3");
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(4));
-        assertThat(value.get(0), equalTo("[\"sub1\",\"sub2\"]"));
-        assertThat(value.get(1), equalTo("{\"content\": \"content_1\"}"));
-        assertThat(value.get(2), equalTo("{\"content\": \"content_2\"}"));
-        assertThat(value.get(3), equalTo("{\"content\": \"content_3\"}"));
+        assertThat(value.get(0).get(0), equalTo("sub"));
+        assertThat(value.get(0).get(1), equalTo("[\"sub1\",\"sub2\"]"));
+        assertThat(value.get(1).get(0), equalTo("item1"));
+        assertThat(value.get(1).get(1), equalTo("{\"content\": \"content_1\"}"));
+        assertThat(value.get(2).get(0), equalTo("item2"));
+        assertThat(value.get(2).get(1), equalTo("{\"content\": \"content_2\"}"));
+        assertThat(value.get(3).get(0), equalTo("item3"));
+        assertThat(value.get(3).get(1), equalTo("{\"content\": \"content_3\"}"));
     }
 
     @Test
@@ -87,28 +94,32 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         List<String> subResources = Arrays.asList("sub/");
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(1));
-        assertThat(value.get(0), equalTo("[\"subsub\"]"));
+        assertThat(value.get(0).get(0), equalTo("sub"));
+        assertThat(value.get(0).get(1), equalTo("[\"subsub\"]"));
 
         // ACT
         subResources = Arrays.asList("subsub/");
-        value = (List<String>) evalScriptGetExpand(":project:server:test:sub", subResources);
+        value = (List<List<String>>)  evalScriptGetExpand(":project:server:test:sub", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(1));
-        assertThat(value.get(0), equalTo("[\"item1\",\"item2\"]"));
+        assertThat(value.get(0).get(0), equalTo("subsub"));
+        assertThat(value.get(0).get(1), equalTo("[\"item1\",\"item2\"]"));
 
         // ACT
         subResources = Arrays.asList("item1", "item2");
-        value = (List<String>) evalScriptGetExpand(":project:server:test:sub:subsub", subResources);
+        value = (List<List<String>>) evalScriptGetExpand(":project:server:test:sub:subsub", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(2));
-        assertThat(value.get(0), equalTo("{\"content\": \"content_sub_1\"}"));
-        assertThat(value.get(1), equalTo("{\"content\": \"content_sub_2\"}"));
+        assertThat(value.get(0).get(0), equalTo("item1"));
+        assertThat(value.get(0).get(1), equalTo("{\"content\": \"content_sub_1\"}"));
+        assertThat(value.get(1).get(0), equalTo("item2"));
+        assertThat(value.get(1).get(1), equalTo("{\"content\": \"content_sub_2\"}"));
     }
 
     @Test
@@ -122,12 +133,14 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         List<String> subResources = Arrays.asList("sub/", "anothersub/");
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(2));
-        assertThat(value.get(0), equalTo("[\"sub1\",\"sub2\"]"));
-        assertThat(value.get(1), equalTo("[\"sub3\",\"sub4\"]"));
+        assertThat(value.get(0).get(0), equalTo("sub"));
+        assertThat(value.get(0).get(1), equalTo("[\"sub1\",\"sub2\"]"));
+        assertThat(value.get(1).get(0), equalTo("anothersub"));
+        assertThat(value.get(1).get(1), equalTo("[\"sub3\",\"sub4\"]"));
     }
 
     @Test
@@ -140,7 +153,7 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         List<String> subResources = Arrays.asList("item2x", "item1x", "item3x");
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertNotNull(value);
@@ -157,20 +170,23 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         List<String> subResources = Arrays.asList("item3", "invalidItem", "item1");
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(2));
-        assertThat(value.get(0), equalTo("{\"content\": \"content_3\"}"));
-        assertThat(value.get(1), equalTo("{\"content\": \"content_1\"}"));
+        assertThat(value.get(0).get(0), equalTo("item3"));
+        assertThat(value.get(0).get(1), equalTo("{\"content\": \"content_3\"}"));
+        assertThat(value.get(1).get(0), equalTo("item1"));
+        assertThat(value.get(1).get(1), equalTo("{\"content\": \"content_1\"}"));
 
         // ACT
         subResources = Arrays.asList("item3", "invalidSub/");
-        value = (List<String>) evalScriptGetExpand(":project:server:test", subResources);
+        value = (List<List<String>>) evalScriptGetExpand(":project:server:test", subResources);
 
         // ASSERT
         assertThat(value.size(), equalTo(1));
-        assertThat(value.get(0), equalTo("{\"content\": \"content_3\"}"));
+        assertThat(value.get(0).get(0), equalTo("item3"));
+        assertThat(value.get(0).get(1), equalTo("{\"content\": \"content_3\"}"));
     }
 
     @Test
@@ -187,17 +203,18 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         String timestamp = String.valueOf(System.currentTimeMillis());
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", Arrays.asList("item1", "item2"), timestamp);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", Arrays.asList("item1", "item2"), timestamp);
 
         // ASSERT
         assertThat(value.size(), equalTo(1));
-        assertThat(value.get(0), equalTo("{\"content\": \"content_2\"}"));
+        assertThat(value.get(0).get(0), equalTo("item2"));
+        assertThat(value.get(0).get(1), equalTo("{\"content\": \"content_2\"}"));
 
         Thread.sleep(100);
 
         // ACT
         timestamp = String.valueOf(System.currentTimeMillis());
-        value = (List<String>) evalScriptGetExpand(":project:server:test", Arrays.asList("item1", "item2"), timestamp);
+        value = (List<List<String>>) evalScriptGetExpand(":project:server:test", Arrays.asList("item1", "item2"), timestamp);
 
         // ASSERT
         assertNotNull(value);
@@ -221,12 +238,14 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         String timestamp = String.valueOf(System.currentTimeMillis());
-        List<String> value = (List<String>) evalScriptGetExpand(":project:server:test", Arrays.asList("sub/", "item1", "item2", "item3"), timestamp);
+        List<List<String>> value = (List<List<String>>) evalScriptGetExpand(":project:server:test", Arrays.asList("sub/", "item1", "item2", "item3"), timestamp);
 
         // ASSERT
         assertThat(value.size(), equalTo(2));
-        assertThat(value.get(0), equalTo("[\"sub2\"]"));
-        assertThat(value.get(1), equalTo("{\"content\": \"content_3\"}"));
+        assertThat(value.get(0).get(0), equalTo("sub"));
+        assertThat(value.get(0).get(1), equalTo("[\"sub2\"]"));
+        assertThat(value.get(1).get(0), equalTo("item3"));
+        assertThat(value.get(1).get(1), equalTo("{\"content\": \"content_3\"}"));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked", "serial"})
