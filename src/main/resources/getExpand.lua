@@ -59,4 +59,10 @@ for i=1,subResourcesCount do
     end
 end
 
-return cjson.encode(result)
+local resEncoded = cjson.encode(result)
+
+if (resEncoded=='{}') then
+    return "notFound"
+end
+
+return resEncoded

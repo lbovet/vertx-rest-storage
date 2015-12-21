@@ -288,7 +288,7 @@ public class RedisGetExpandLuaScriptTests extends AbstractLuaScriptTest {
             valueStr = (String) evalScriptGetExpand(resourceName, subResources);
         }
 
-        if(valueStr.equals("{}")){
+        if(valueStr.equals("notFound")){
             return result;
         }
 

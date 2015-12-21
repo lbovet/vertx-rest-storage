@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.http.RouteMatcher;
 import org.vertx.java.core.json.JsonArray;
@@ -21,7 +22,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     
     private static final String OFFSET_PARAMETER = "offset";
     private static final String LIMIT_PARAMETER = "limit";
-    
+    private static final String EXPAND_IN_STORAGE_PARAMETER = "expandInStorage";
+
     Logger log;
 
     RouteMatcher routeMatcher = new RouteMatcher();
@@ -65,6 +67,81 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                         pump.start();
                     }
                 }, request.params().get("cleanupResourcesAmount"));
+            }
+        });
+
+        routeMatcher.postWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
+            public void handle(final HttpServerRequest request) {
+                if (!request.params().contains(EXPAND_IN_STORAGE_PARAMETER)) {
+                    respondWithNotAllowed(request);
+                } else {
+                    request.bodyHandler(new Handler<Buffer>() {
+                        @Override
+                        public void handle(Buffer event) {
+                            JsonObject body = new JsonObject(event.toString());
+                            JsonArray subResourcesArray = body.getArray("subResources");
+                            if (subResourcesArray == null) {
+                                request.response().setStatusCode(400);
+                                request.response().setStatusMessage("Bad Request");
+                                request.response().end("Bad Request: Expected array field 'subResources' with names of resources");
+                                return;
+                            }
+
+                            List<String> subResourceNames = new ArrayList<String>();
+                            for (int i = 0; i < subResourcesArray.size(); i++) {
+                                 subResourceNames.add((String) subResourcesArray.get(i));
+                            }
+
+                            final String path = cleanPath(request.path().substring(prefix.length()));
+                            final String etag = request.headers().get(IF_NONE_MATCH_HEADER);
+                            storage.getExpand(path, etag, subResourceNames, new Handler<Resource>() {
+                                @Override
+                                public void handle(Resource resource) {
+
+                                    if(!resource.modified){
+                                        request.response().setStatusCode(304);
+                                        request.response().setStatusMessage("Not Modified");
+                                        request.response().headers().set(ETAG_HEADER, etag);
+                                        request.response().headers().add("Content-Length", "0");
+                                        request.response().end();
+                                        return;
+                                    }
+
+                                    if(resource.exists){
+                                        if(log.isTraceEnabled()) {
+                                            log.trace("RestStorageHandler resource is a DocumentResource: " + request.uri());
+                                        }
+
+                                        String mimeType = mimeTypeResolver.resolveMimeType(path);
+                                        final DocumentResource documentResource = (DocumentResource) resource;
+                                        if (documentResource.etag != null && !documentResource.etag.isEmpty()) {
+                                            request.response().headers().add(ETAG_HEADER, documentResource.etag);
+                                        }
+                                        request.response().headers().add("Content-Length", "" + documentResource.length);
+                                        request.response().headers().add("Content-Type", mimeType);
+                                        final Pump pump = Pump.createPump(documentResource.readStream, request.response());
+                                        documentResource.readStream.endHandler(new Handler<Void>() {
+                                            public void handle(Void nothing) {
+                                                documentResource.closeHandler.handle(null);
+                                                request.response().end();
+                                            }
+                                        });
+                                        pump.start();
+                                        // TODO: exception handlers
+
+                                    } else {
+                                        if(log.isTraceEnabled()) {
+                                            log.trace("RestStorageHandler Could not find resource: " + request.uri());
+                                        }
+                                        request.response().setStatusCode(404);
+                                        request.response().setStatusMessage("Not Found");
+                                        request.response().end("404 Not Found");
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
             }
         });
 
@@ -350,9 +427,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         routeMatcher.all(".*", new Handler<HttpServerRequest>() {
             public void handle(HttpServerRequest request) {
-                request.response().setStatusCode(405);
-                request.response().setStatusMessage("Method Not Allowed");
-                request.response().end("405 Method Not Allowed");
+                respondWithNotAllowed(request);
             }
         });
     }
@@ -381,7 +456,13 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 		public int offset;
     	public int limit;
     }
-    
+
+    private void respondWithNotAllowed(HttpServerRequest request){
+        request.response().setStatusCode(405);
+        request.response().setStatusMessage("Method Not Allowed");
+        request.response().end("405 Method Not Allowed");
+    }
+
     private String collectionName(String path) {
         if (path.equals("/") || path.equals("")) {
             return "root";
