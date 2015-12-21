@@ -46,7 +46,7 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @After
-    public void disconnnect() {
+    public void disconnect() {
         jedis.flushAll();
         jedis.close();
     }
@@ -56,8 +56,8 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
 
         // ARRANGE
         String now = String.valueOf(System.currentTimeMillis());
-        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
-        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}", now);
+        evalScriptPutNoReturn(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
+        evalScriptPutNoReturn(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}", now);
         Thread.sleep(10);
 
         // ACT
@@ -80,8 +80,8 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
         // ARRANGE
         String now = String.valueOf(System.currentTimeMillis());
         String nowPlus1000sec = String.valueOf((System.currentTimeMillis() + 1000000));
-        evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
-        evalScriptPut(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}", nowPlus1000sec);
+        evalScriptPutNoReturn(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", now);
+        evalScriptPutNoReturn(":project:server:test:test11:test22", "{\"content\": \"test/test1/test2\"}", nowPlus1000sec);
         Thread.sleep(1000);
 
         // ACT
@@ -107,7 +107,7 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
         String now = String.valueOf(System.currentTimeMillis());
         String maxExpire = String.valueOf(MAX_EXPIRE_IN_MILLIS);
         for (int i = 1; i <= 30; i++) {
-            evalScriptPut(":project:server:test:test1:test" + i, "{\"content\": \"test" + i + "\"}", i % 2 == 0 ? now : maxExpire);
+            evalScriptPutNoReturn(":project:server:test:test1:test" + i, "{\"content\": \"test" + i + "\"}", i % 2 == 0 ? now : maxExpire);
         }
         Thread.sleep(10);
 
@@ -128,7 +128,7 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
         String now = String.valueOf(System.currentTimeMillis());
         String maxExpire = String.valueOf(MAX_EXPIRE_IN_MILLIS);
         for (int i = 1; i <= 21000; i++) {
-            evalScriptPut(":project:server:test:test1:test" + i, "{\"content\": \"test" + i + "\"}", i % 3 == 0 ? now : maxExpire);
+            evalScriptPutNoReturn(":project:server:test:test1:test" + i, "{\"content\": \"test" + i + "\"}", i % 3 == 0 ? now : maxExpire);
         }
         Thread.sleep(100);
 
@@ -185,28 +185,6 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.zcount("rest-storage:collections:project:server:test:test1", getNowAsDouble(), MAX_EXPIRE_IN_MILLIS), equalTo(1000000l));
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1, final String expire) {
-        String putScript = readScript("put.lua", true);
-        jedis.eval(putScript, new ArrayList() {
-                    {
-                        add(resourceName1);
-                    }
-                }, new ArrayList() {
-                    {
-                        add(prefixResources);
-                        add(prefixCollections);
-                        add(expirableSet);
-                        add("false");
-                        add(expire);
-                        add("9999999999999");
-                        add(resourceValue1);
-                        add(UUID.randomUUID().toString());
-                    }
-                }
-        );
-    }
-
     private Object evalScriptCleanup(final long minscore, final long now) {
         return evalScriptCleanup(minscore, now, 1000, false);
     }
@@ -241,9 +219,9 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptDel(final String resourceName, final double maxscore) {
-        String delScript = readScript("del.lua", false);
-        return jedis.eval(delScript, new ArrayList() {
+    private void evalScriptPutNoReturn(final String resourceName, final String resourceValue, final String expire) {
+        String putScript = readScript("put.lua", true);
+        jedis.eval(putScript, new ArrayList() {
                     {
                         add(resourceName);
                     }
@@ -251,11 +229,12 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
                     {
                         add(prefixResources);
                         add(prefixCollections);
-                        add(prefixDeltaResources);
-                        add(prefixDeltaEtags);
                         add(expirableSet);
-                        add(getNowAsString());
-                        add(String.valueOf(maxscore));
+                        add("false");
+                        add(expire);
+                        add("9999999999999");
+                        add(resourceValue);
+                        add(UUID.randomUUID().toString());
                     }
                 }
         );

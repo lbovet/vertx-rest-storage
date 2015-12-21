@@ -18,6 +18,8 @@ import redis.clients.jedis.Jedis;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Abstract class containing common methods for LuaScript tests
@@ -30,18 +32,20 @@ public abstract class AbstractLuaScriptTest {
     final static String prefixDeltaResources = "delta:resources";
     final static String prefixDeltaEtags = "delta:etags";
 
+    static final String MAX_EXPIRE = "9999999999999";
+
     Jedis jedis = null;
 
     @BeforeClass
     public static void config() {
-        if(!useExternalRedis()) {
+        if (!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.start();
         }
     }
 
     @AfterClass
     public static void stopRedis() {
-        if(!useExternalRedis()) {
+        if (!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.stop();
         }
     }
@@ -52,7 +56,7 @@ public abstract class AbstractLuaScriptTest {
     }
 
     @After
-    public void disconnnect() {
+    public void disconnect() {
         jedis.flushAll();
         jedis.close();
     }
@@ -63,10 +67,12 @@ public abstract class AbstractLuaScriptTest {
     }
 
     protected double getNowAsDouble() {
-        return Double.valueOf(System.currentTimeMillis()).doubleValue();
+        return (double) System.currentTimeMillis();
     }
 
-    protected String getNowAsString() { return String.valueOf(System.currentTimeMillis()); }
+    protected String getNowAsString() {
+        return String.valueOf(System.currentTimeMillis());
+    }
 
     protected String readScript(String scriptFileName) {
         return readScript(scriptFileName, false);
@@ -95,5 +101,75 @@ public abstract class AbstractLuaScriptTest {
             }
         }
         return sb.toString();
+    }
+
+    protected String evalScriptPut(final String resourceName, final String resourceValue) {
+        return evalScriptPut(resourceName, resourceValue, MAX_EXPIRE);
+    }
+
+    protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire) {
+        return evalScriptPut(resourceName, resourceValue, expire, UUID.randomUUID().toString());
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked", "serial"})
+    protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire, final String etag) {
+        String putScript = readScript("put.lua");
+        String etagTmp;
+        if (etag != null && !etag.isEmpty()) {
+            etagTmp = etag;
+        } else {
+            etagTmp = UUID.randomUUID().toString();
+        }
+        final String etagValue = etagTmp;
+        return (String) jedis.eval(putScript, new ArrayList() {
+                    {
+                        add(resourceName);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(expirableSet);
+                        add("false");
+                        add(expire);
+                        add("9999999999999");
+                        add(resourceValue);
+                        add(etagValue);
+                    }
+                }
+        );
+    }
+
+    protected Object evalScriptGet(final String resourceName) {
+        return evalScriptGet(resourceName, String.valueOf(System.currentTimeMillis()));
+    }
+
+    protected Object evalScriptGet(final String resourceName, final String timestamp) {
+        return evalScriptGet(resourceName, timestamp, "", "");
+    }
+
+    protected Object evalScriptGetOffsetCount(final String resourceName1, final String offset, final String count) {
+        return evalScriptGet(resourceName1, String.valueOf(System.currentTimeMillis()), offset, count);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
+    protected Object evalScriptGet(final String resourceName, final String timestamp, final String offset, final String count) {
+        String getScript = readScript("get.lua");
+        return jedis.eval(getScript, new ArrayList() {
+                    {
+                        add(resourceName);
+                    }
+                }, new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(expirableSet);
+                        add(timestamp);
+                        add("9999999999999");
+                        add(offset);
+                        add(count);
+                    }
+                }
+        );
     }
 }

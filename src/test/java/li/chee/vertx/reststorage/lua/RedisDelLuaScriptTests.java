@@ -3,7 +3,6 @@ package li.chee.vertx.reststorage.lua;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.UUID;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -118,12 +117,11 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
     public void deleteExpiredResourceWithMaxScoreAtMax() throws InterruptedException {
 
         // ARRANGE
-        String now = String.valueOf(System.currentTimeMillis());
         evalScriptPut(":project:server:test:test1:test2", "{\"content\": \"test/test1/test2\"}", "9999999999999");
         Thread.sleep(10);
 
         // ACT
-        String value = (String) evalScriptDel(":project:server:test:test1:test2");
+        evalScriptDel(":project:server:test:test1:test2");
 
         // ASSERT
         assertThat(jedis.zrangeByScore("rest-storage:collections:project", getNowAsDouble(), 9999999999999d).size(), equalTo(0));
@@ -147,7 +145,7 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         long after = System.currentTimeMillis();
-        String value = (String) evalScriptDel(":project:server:test:test1:test2", after);
+        evalScriptDel(":project:server:test:test1:test2", after);
 
         // ASSERT
         assertThat(jedis.zrangeByScore("rest-storage:collections:project", getNowAsDouble(), 9999999999999d).size(), equalTo(0));
@@ -172,7 +170,7 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         long after = System.currentTimeMillis();
-        String value = (String) evalScriptDel(":project:server:test:test1:test2", after);
+        evalScriptDel(":project:server:test:test1:test2", after);
 
         // ASSERT
         String afterNow = String.valueOf(System.currentTimeMillis());
@@ -195,7 +193,7 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
 
         // ACT
         long after = System.currentTimeMillis();
-        String value = (String) evalScriptDel(":project:server:test:test11:test22", after);
+        evalScriptDel(":project:server:test:test11:test22", after);
 
         // ASSERT
         assertThat(jedis.exists("rest-storage:collections:project"), equalTo(true));
@@ -203,69 +201,6 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists("rest-storage:collections:project:server:test"), equalTo(true));
         assertThat(jedis.exists("rest-storage:collections:project:server:test:test11"), equalTo(false));
         assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test22"), equalTo(false));
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1) {
-        String putScript = readScript("put.lua");
-        jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("false");
-                add("9999999999999");
-                add("9999999999999");
-                add(resourceValue1);
-                add(UUID.randomUUID().toString());
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private void evalScriptPut(final String resourceName1, final String resourceValue1, final String expire) {
-        String putScript = readScript("put.lua");
-        jedis.eval(putScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add("false");
-                add(expire);
-                add("9999999999999");
-                add(resourceValue1);
-                add(UUID.randomUUID().toString());
-            }
-        }
-                );
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-    private Object evalScriptGet(final String resourceName1, final String timestamp) {
-        String getScript = readScript("get.lua");
-        return jedis.eval(getScript, new ArrayList() {
-            {
-                add(resourceName1);
-            }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(expirableSet);
-                add(timestamp);
-                add("9999999999999");
-            }
-        }
-                );
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import org.vertx.java.core.AsyncResult;
@@ -228,4 +229,8 @@ public class FileSystemStorage implements Storage {
         // nothing to do here
     }
 
+    @Override
+    public void getExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
+        throw new UnsupportedOperationException("Method 'getExpand' is not yet implemented for the FileSystemStorage");
+    }
 }
