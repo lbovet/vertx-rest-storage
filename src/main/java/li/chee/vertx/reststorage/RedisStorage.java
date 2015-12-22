@@ -21,6 +21,7 @@ public class RedisStorage implements Storage {
 
     // set to very high value = Sat Nov 20 2286 17:46:39
     private static final String MAX_EXPIRE_IN_MILLIS = "9999999999999";
+    private final String EMPTY = "";
 
     private static final int CLEANUP_BULK_SIZE = 200;
 
@@ -53,9 +54,9 @@ public class RedisStorage implements Storage {
         luaGetScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
         luaScripts.put(LuaScript.GET, luaGetScriptState);
 
-        LuaScriptState luaGetExpandScriptState = new LuaScriptState(LuaScript.GET_EXPAND, false);
-        luaGetExpandScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
-        luaScripts.put(LuaScript.GET_EXPAND, luaGetExpandScriptState);
+        LuaScriptState luaBulkExpandScriptState = new LuaScriptState(LuaScript.BULK_EXPAND, false);
+        luaBulkExpandScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
+        luaScripts.put(LuaScript.BULK_EXPAND, luaBulkExpandScriptState);
 
         LuaScriptState luaPutScriptState = new LuaScriptState(LuaScript.PUT, false);
         luaPutScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
@@ -71,7 +72,7 @@ public class RedisStorage implements Storage {
     }
 
     private enum LuaScript {
-        GET("get.lua"), GET_EXPAND("getExpand.lua"), PUT("put.lua"), DELETE("del.lua"), CLEANUP("cleanup.lua");
+        GET("get.lua"), BULK_EXPAND("bulkExpand.lua"), PUT("put.lua"), DELETE("del.lua"), CLEANUP("cleanup.lua");
 
         private String file;
 
@@ -411,12 +412,12 @@ public class RedisStorage implements Storage {
     }
 
     @Override
-    public void getExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
+    public void bulkExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
         final String key = encodePath(path);
         final JsonObject command = new JsonObject();
         command.putString("command", "evalsha");
         JsonArray args = new JsonArray();
-        args.add(luaScripts.get(LuaScript.GET_EXPAND).getSha());
+        args.add(luaScripts.get(LuaScript.BULK_EXPAND).getSha());
         args.add(1);
         args.add(key);
         args.add(redisResourcesPrefix);
@@ -428,35 +429,24 @@ public class RedisStorage implements Storage {
         args.add(subResources.size());
         command.putArray("args", args);
 
-        reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.GET_EXPAND, new GetExpand(command, handler, etag, extractCollectionFromKey(key)), 0);
-    }
-
-    private String extractCollectionFromKey(String key){
-        String[] keySplitted = StringUtils.split(key, ":");
-        String collectionName = "";
-        if(keySplitted.length > 0){
-            collectionName = keySplitted[keySplitted.length - 1];
-        }
-        return collectionName;
+        reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.BULK_EXPAND, new BulkExpand(command, handler, etag), 0);
     }
 
     /**
-     * The GetExpand Command Execution.
+     * The BulkExpand Command Execution.
      * If the get script cannot be found under the sha in luaScriptState, reload the script.
      * To avoid infinite recursion, we limit the recursion.
      */
-    private class GetExpand implements RedisCommand {
+    private class BulkExpand implements RedisCommand {
 
         private JsonObject command;
         private Handler<Resource> handler;
         private String etag;
-        private String collection;
 
-        public GetExpand(JsonObject command, final Handler<Resource> handler, String etag, String collection) {
+        public BulkExpand(JsonObject command, final Handler<Resource> handler, String etag) {
             this.command = command;
             this.handler = handler;
             this.etag = etag;
-            this.collection = collection;
         }
 
         public void exec(final int executionCounter) {
@@ -469,12 +459,12 @@ public class RedisStorage implements Storage {
                     if("error".equals(event.body().getString("status"))) {
                         String message = event.body().getString("message");
                         if(message != null && message.startsWith("NOSCRIPT")) {
-                            log.warn("getExpand script couldn't be found, reload it");
+                            log.warn("bulkExpand script couldn't be found, reload it");
                             log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
                             if(executionCounter > 10) {
                                 log.error("amount the script got loaded is higher than 10, we abort");
                             } else {
-                                luaScripts.get(LuaScript.GET_EXPAND).loadLuaScript(new GetExpand(command, handler, etag, collection), executionCounter);
+                                luaScripts.get(LuaScript.BULK_EXPAND).loadLuaScript(new BulkExpand(command, handler, etag), executionCounter);
                             }
                             return;
                         }
@@ -486,8 +476,6 @@ public class RedisStorage implements Storage {
                     }
 
                     JsonObject expandResult = new JsonObject();
-                    JsonObject collectionObj = new JsonObject();
-                    expandResult.putObject(collection, collectionObj);
 
                     JsonArray resultArr = new JsonArray((String) value);
 
@@ -496,9 +484,9 @@ public class RedisStorage implements Storage {
                         String subResourceName = entries.get(0);
                         String subResourceValue = entries.get(1);
                         if(subResourceValue.startsWith("[") && subResourceValue.endsWith("]")){
-                            collectionObj.putArray(subResourceName, new JsonArray(subResourceValue));
+                            expandResult.putArray(subResourceName, extractSortedJsonArray(subResourceValue));
                         } else {
-                            collectionObj.putObject(subResourceName, new JsonObject(subResourceValue));
+                            expandResult.putObject(subResourceName, new JsonObject(subResourceValue));
                         }
                     }
 
@@ -522,6 +510,24 @@ public class RedisStorage implements Storage {
                 }
             });
         }
+    }
+
+    private JsonArray extractSortedJsonArray(String arrayString){
+        String arrayContent = arrayString.replaceAll("\\[", EMPTY).replaceAll("\\]", EMPTY).replaceAll("\"", EMPTY).replaceAll("\\\\", EMPTY);
+        String[] splitted = StringUtils.split(arrayContent, ",");
+        List<String> resources = new ArrayList<>();
+        List<String> collections = new ArrayList<>();
+        for (int i = 0; i < splitted.length; i++) {
+            String split = splitted[i];
+            if(split.endsWith("/")){
+                collections.add(split);
+            }else {
+                resources.add(split);
+            }
+        }
+        Collections.sort(collections);
+        collections.addAll(resources);
+        return new JsonArray(new ArrayList<Object>(collections));
     }
 
     private void handleJsonArrayValues(JsonArray values, Handler<Resource> handler){

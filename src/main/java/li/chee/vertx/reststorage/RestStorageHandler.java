@@ -22,7 +22,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     
     private static final String OFFSET_PARAMETER = "offset";
     private static final String LIMIT_PARAMETER = "limit";
-    private static final String EXPAND_IN_STORAGE_PARAMETER = "expandInStorage";
+    private static final String BULK_EXPAND_PARAMETER = "bulkExpand";
 
     Logger log;
 
@@ -72,7 +72,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         routeMatcher.postWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
-                if (!request.params().contains(EXPAND_IN_STORAGE_PARAMETER)) {
+                if (!request.params().contains(BULK_EXPAND_PARAMETER)) {
                     respondWithNotAllowed(request);
                 } else {
                     request.bodyHandler(new Handler<Buffer>() {
@@ -94,11 +94,11 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
                             final String path = cleanPath(request.path().substring(prefix.length()));
                             final String etag = request.headers().get(IF_NONE_MATCH_HEADER);
-                            storage.getExpand(path, etag, subResourceNames, new Handler<Resource>() {
+                            storage.bulkExpand(path, etag, subResourceNames, new Handler<Resource>() {
                                 @Override
                                 public void handle(Resource resource) {
 
-                                    if(!resource.modified){
+                                    if (!resource.modified) {
                                         request.response().setStatusCode(304);
                                         request.response().setStatusMessage("Not Modified");
                                         request.response().headers().set(ETAG_HEADER, etag);
@@ -107,8 +107,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                         return;
                                     }
 
-                                    if(resource.exists){
-                                        if(log.isTraceEnabled()) {
+                                    if (resource.exists) {
+                                        if (log.isTraceEnabled()) {
                                             log.trace("RestStorageHandler resource is a DocumentResource: " + request.uri());
                                         }
 
@@ -130,7 +130,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                         // TODO: exception handlers
 
                                     } else {
-                                        if(log.isTraceEnabled()) {
+                                        if (log.isTraceEnabled()) {
                                             log.trace("RestStorageHandler Could not find resource: " + request.uri());
                                         }
                                         request.response().setStatusCode(404);
