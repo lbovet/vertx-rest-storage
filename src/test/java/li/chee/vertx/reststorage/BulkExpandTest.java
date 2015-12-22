@@ -20,11 +20,11 @@ import static org.hamcrest.Matchers.*;
 import static org.vertx.testtools.VertxAssert.testComplete;
 
 
-public class ExpandInStorageTest extends AbstractTestCase {
+public class BulkExpandTest extends AbstractTestCase {
 
     final String ETAG_HEADER = "Etag";
     final String IF_NONE_MATCH_HEADER = "if-none-match";
-    final String POST_STORAGE_EXP = "/server/resources?expandInStorage=true";
+    final String POST_STORAGE_EXP = "/server/resources?bulkExpand=true";
 
     @Before
     public void setPath() {
@@ -169,6 +169,7 @@ public class ExpandInStorageTest extends AbstractTestCase {
         with().body("{ \"foo\": \"sub2\" }").put("/server/resources/sub/sub2");
         with().body("{ \"foo\": \"sub2\" }").put("/server/resources/anothersub/sub3");
         with().body("{ \"foo\": \"sub2\" }").put("/server/resources/anothersub/sub4");
+        with().body("{ \"foo\": \"sub2\" }").put("/server/resources/anothersub/sub5/subsub1");
 
         given()
                 .body("{ \"subResources\": [\"anothersub/\", \"sub/\"] }")
@@ -177,8 +178,11 @@ public class ExpandInStorageTest extends AbstractTestCase {
                 .then()
                 .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
                 .body("", allOf(hasKey("anothersub"), hasKey("sub")))
-                .body("sub", hasItems("sub1", "sub2"))
-                .body("anothersub", hasItems("sub3", "sub4"));
+                .body("sub.get(0)", equalTo("sub1"))
+                .body("sub.get(1)", equalTo("sub2"))
+                .body("anothersub.get(0)", equalTo("sub5/"))
+                .body("anothersub.get(1)", equalTo("sub3"))
+                .body("anothersub.get(2)", equalTo("sub4"));
 
         with().body("{ \"foo\": \"sub1\" }").put("/server/resources/level1/sub/sub1");
         with().body("{ \"foo\": \"sub2\" }").put("/server/resources/level1/sub/sub2");
