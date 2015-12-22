@@ -67,7 +67,10 @@ if (!project.hasProperty('sonatypePassword')) {
 uploadArchives {
     repositories {
         mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            if ("$uploadRepository".toLowerCase().contains("sonatype")) {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+            }
 		
 			repository(url: "$uploadRepository") {
                 authentication(userName: "$repoUsername", password: "$repoPassword")
