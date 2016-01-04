@@ -22,11 +22,10 @@ apply plugin: 'signing'
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // maven task configuration
 
-ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
-
 signing {
-	required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
-	sign configurations.archives
+    if (project.hasProperty('signArchives')) {
+	    sign configurations.archives
+     }
 }
 
 if (!project.hasProperty('repoUsername')) {
@@ -53,32 +52,67 @@ if(!project.hasProperty('snapshotRepository')) {
     println 'found custom snapshotRepository: ' + snapshotRepository
 }
 
+if (!project.hasProperty('sonatypeUsername')) {
+    ext.sonatypeUsername = 'sonatypeUsername'
+} else {
+    println 'got property sonatypeUsername: ' + repoUsername
+}
+
+if (!project.hasProperty('sonatypePassword')) {
+    ext.sonatypePassword = 'sonatypePassword'
+} else {
+    println 'got property sonatypePassword: ' + repoPassword
+}
+
 uploadArchives {
-	group 'build'
-	description = "Does a maven deploy of archives artifacts"
+    repositories {
+        mavenDeployer {
 
-	repositories {
-		mavenDeployer {
-
-            // setUniqueVersion(false)
-
-            configuration = configurations.archives
-
-            repository(url: "$uploadRepository") {
+            if ("$uploadRepository".toLowerCase().contains("sonatype")) {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+            }
+		
+			repository(url: "$uploadRepository") {
                 authentication(userName: "$repoUsername", password: "$repoPassword")
             }
 
             snapshotRepository(url: "$snapshotRepository") {
                 authentication(userName: "$repoUsername", password: "$repoPassword")
             }
+	
+            pom.project {
+                name 'vertx-rest-storage'
+                packaging 'zip'
+                description 'Stores resources in a hierarchical way according to their URI. It actually implements a generic CRUD REST service.'
+                url 'https://github.com/swisspush/vertx-rest-storage'
 
-			if (isReleaseVersion) {
-				beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-			}
+                scm {
+                    url 'scm:git@github.com:swisspush/vertx-rest-storage.git'
+                    connection 'scm:git@github.com:swisspush/vertx-rest-storage.git'
+                    developerConnection 'scm:git@github.com:swisspush/vertx-rest-storage.git'
+                }
 
-			configurePom(pom)
-		}
-	}
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        distribution 'repo'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'floriankammermann'
+                        name 'Florian Kammermann'
+                    }
+                    developer {
+                        id 'lbovet'
+                        name 'Laurent Bovet'
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

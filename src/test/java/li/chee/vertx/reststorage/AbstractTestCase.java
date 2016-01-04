@@ -80,6 +80,10 @@ public abstract class AbstractTestCase extends TestVerticle {
                             log.error("Could not load main redis module", event.cause());
                             return;
                         }
+
+                        // standard code: will called @Before every test
+                        RestAssured.basePath = "";
+
                         appReady();
                     }
                 });

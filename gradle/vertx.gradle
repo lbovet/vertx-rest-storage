@@ -132,6 +132,7 @@ compileJava {
 
 javadoc {
   options.encoding = "UTF-8"
+  classpath = configurations.compile + configurations.provided
 }
 
 task copyMod( type:Copy, dependsOn: 'classes', description: 'Assemble the module into the local mods directory' ) {

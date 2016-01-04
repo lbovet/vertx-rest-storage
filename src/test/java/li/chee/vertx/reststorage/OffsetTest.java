@@ -12,12 +12,6 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 
 public class OffsetTest extends AbstractTestCase {
 
-    @Before
-    public void setPath() {
-        RestAssured.basePath = "/server/tests/offset";
-        delete();
-    }
-
     @Test
     public void testInvalidOffsets() {
 
