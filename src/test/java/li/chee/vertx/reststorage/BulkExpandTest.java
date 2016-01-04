@@ -25,6 +25,8 @@ public class BulkExpandTest extends AbstractTestCase {
     final String ETAG_HEADER = "Etag";
     final String IF_NONE_MATCH_HEADER = "if-none-match";
     final String POST_STORAGE_EXP = "/server/resources?bulkExpand=true";
+    final int BAD_REQUEST = 400;
+    final String BAD_REQUEST_PARSE_MSG = "Bad Request: Unable to parse body of bulkExpand POST request";
 
     @Before
     public void setPath() {
@@ -51,8 +53,32 @@ public class BulkExpandTest extends AbstractTestCase {
                 .when()
                 .post(POST_STORAGE_EXP)
                 .then()
-                .assertThat().statusCode(400)
+                .assertThat().statusCode(BAD_REQUEST)
                 .assertThat().body(equalTo("Bad Request: Expected array field 'subResources' with names of resources"));
+
+        given()
+                .body("{ \"foo\": bar1 }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(BAD_REQUEST)
+                .assertThat().body(equalTo(BAD_REQUEST_PARSE_MSG));
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", 123] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(BAD_REQUEST)
+                .assertThat().body(equalTo(BAD_REQUEST_PARSE_MSG));
+
+        given()
+                .body("\"foo\": \"bar1\"")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(BAD_REQUEST)
+                .assertThat().body(equalTo(BAD_REQUEST_PARSE_MSG));
 
         testComplete();
     }

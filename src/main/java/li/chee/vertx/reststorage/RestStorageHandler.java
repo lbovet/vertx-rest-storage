@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.http.HttpServerRequest;
@@ -19,7 +20,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     public static final String EXPIRE_AFTER_HEADER = "x-expire-after";
     public static final String ETAG_HEADER = "Etag";
     public static final String IF_NONE_MATCH_HEADER = "if-none-match";
-    
+
     private static final String OFFSET_PARAMETER = "offset";
     private static final String LIMIT_PARAMETER = "limit";
     private static final String BULK_EXPAND_PARAMETER = "bulkExpand";
@@ -37,7 +38,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     public RestStorageHandler(final Logger log, final Storage storage, final String prefix, JsonObject editorConfig) {
 
         this.log = log;
-        
+
         if (editorConfig != null) {
             for (Entry<String, Object> entry : editorConfig.toMap().entrySet()) {
                 editors.put(entry.getKey(), entry.getValue().toString());
@@ -46,12 +47,12 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         routeMatcher.postWithRegEx(".*_cleanup", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
-                if(log.isTraceEnabled()) {
+                if (log.isTraceEnabled()) {
                     log.trace("RestStorageHandler cleanup");
                 }
                 storage.cleanup(new Handler<DocumentResource>() {
                     public void handle(final DocumentResource documentResource) {
-                        if(log.isTraceEnabled()) {
+                        if (log.isTraceEnabled()) {
                             log.trace("RestStorageHandler cleanup");
                         }
                         request.response().headers().add("Content-Length", "" + documentResource.length);
@@ -78,18 +79,21 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     request.bodyHandler(new Handler<Buffer>() {
                         @Override
                         public void handle(Buffer event) {
-                            JsonObject body = new JsonObject(event.toString());
-                            JsonArray subResourcesArray = body.getArray("subResources");
-                            if (subResourcesArray == null) {
-                                request.response().setStatusCode(400);
-                                request.response().setStatusMessage("Bad Request");
-                                request.response().end("Bad Request: Expected array field 'subResources' with names of resources");
-                                return;
-                            }
-
                             List<String> subResourceNames = new ArrayList<String>();
-                            for (int i = 0; i < subResourcesArray.size(); i++) {
-                                 subResourceNames.add((String) subResourcesArray.get(i));
+                            try {
+                                JsonObject body = new JsonObject(event.toString());
+                                JsonArray subResourcesArray = body.getArray("subResources");
+                                if (subResourcesArray == null) {
+                                    respondWithBadRequest(request, "Bad Request: Expected array field 'subResources' with names of resources");
+                                    return;
+                                }
+
+                                for (int i = 0; i < subResourcesArray.size(); i++) {
+                                    subResourceNames.add((String) subResourcesArray.get(i));
+                                }
+                            } catch(RuntimeException ex){
+                                respondWithBadRequest(request, "Bad Request: Unable to parse body of bulkExpand POST request");
+                                return;
                             }
 
                             final String path = cleanPath(request.path().substring(prefix.length()));
@@ -149,7 +153,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path().substring(prefix.length()));
                 final String etag = request.headers().get(IF_NONE_MATCH_HEADER);
-                if(log.isTraceEnabled()) {
+                if (log.isTraceEnabled()) {
                     log.trace("RestStorageHandler got GET Request path: " + path + " etag: " + etag);
                 }
                 String offsetFromUrl = request.params().get(OFFSET_PARAMETER);
@@ -157,11 +161,11 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 OffsetLimit offsetLimit = UrlParser.offsetLimit(offsetFromUrl, limitFromUrl);
                 storage.get(path, etag, offsetLimit.offset, offsetLimit.limit, new Handler<Resource>() {
                     public void handle(Resource resource) {
-                        if(log.isTraceEnabled()) {
+                        if (log.isTraceEnabled()) {
                             log.trace("RestStorageHandler resource exists: " + resource.exists);
                         }
 
-                        if(!resource.modified){
+                        if (!resource.modified) {
                             request.response().setStatusCode(304);
                             request.response().setStatusMessage("Not Modified");
                             request.response().headers().set(ETAG_HEADER, etag);
@@ -174,27 +178,27 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             String accept = request.headers().get("Accept");
                             boolean html = (accept != null && accept.contains("text/html"));
                             if (resource instanceof CollectionResource) {
-                                if(log.isTraceEnabled()) {
+                                if (log.isTraceEnabled()) {
                                     log.trace("RestStorageHandler resource is collection: " + request.uri());
                                 }
                                 CollectionResource collection = (CollectionResource) resource;
                                 String collectionName = collectionName(path);
                                 if (html && !request.uri().endsWith("/")) {
-                                    if(log.isTraceEnabled()) {
+                                    if (log.isTraceEnabled()) {
                                         log.trace("RestStorageHandler accept contains text/html and ends with /");
                                     }
                                     request.response().setStatusCode(302);
                                     request.response().setStatusMessage("Found");
                                     request.response().headers().add("Location", request.uri() + "/");
                                     request.response().end();
-                                } else if(html) {
-                                    if(log.isTraceEnabled()) {
+                                } else if (html) {
+                                    if (log.isTraceEnabled()) {
                                         log.trace("RestStorageHandler accept contains text/html");
                                     }
                                     if (!(request.query() != null && request.query().contains("follow=off")) &&
                                             collection.items.size() == 1 &&
                                             collection.items.get(0) instanceof CollectionResource) {
-                                        if(log.isTraceEnabled()) {
+                                        if (log.isTraceEnabled()) {
                                             log.trace("RestStorageHandler query contains follow=off");
                                         }
                                         request.response().setStatusCode(302);
@@ -235,7 +239,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     for (String name : sortedNames) {
                                         array.addString(name);
                                     }
-                                    if(log.isTraceEnabled()) {
+                                    if (log.isTraceEnabled()) {
                                         log.trace("RestStorageHandler return collection: " + sortedNames);
                                     }
                                     String body = new JsonObject().putArray(collectionName, array).encode();
@@ -245,11 +249,11 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 }
                             }
                             if (resource instanceof DocumentResource) {
-                                if(log.isTraceEnabled()) {
+                                if (log.isTraceEnabled()) {
                                     log.trace("RestStorageHandler resource is a DocumentResource: " + request.uri());
                                 }
                                 if (request.uri().endsWith("/")) {
-                                    if(log.isTraceEnabled()) {
+                                    if (log.isTraceEnabled()) {
                                         log.trace("RestStorageHandler DocumentResource ends with /");
                                     }
                                     request.response().setStatusCode(302);
@@ -257,7 +261,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     request.response().headers().add("Location", request.uri().substring(0, request.uri().length() - 1));
                                     request.response().end();
                                 } else {
-                                    if(log.isTraceEnabled()) {
+                                    if (log.isTraceEnabled()) {
                                         log.trace("RestStorageHandler DocumentResource does not end with /");
                                     }
                                     String mimeType = mimeTypeResolver.resolveMimeType(path);
@@ -291,7 +295,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 }
                             }
                         } else {
-                            if(log.isTraceEnabled()) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("RestStorageHandler Could not find resource: " + request.uri());
                             }
                             request.response().setStatusCode(404);
@@ -336,7 +340,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 }
                 boolean merge = (request.query() != null && request.query().contains("merge=true")
                         && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
-                if(log.isTraceEnabled()) {
+                if (log.isTraceEnabled()) {
                     log.trace("RestStorageHandler put resource: " + request.uri() + " with expire: " + expire);
                 }
 
@@ -346,7 +350,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     public void handle(Resource resource) {
                         request.resume();
 
-                        if(!resource.modified){
+                        if (!resource.modified) {
                             request.response().setStatusCode(304);
                             request.response().setStatusMessage("Not Modified");
                             request.response().headers().set(ETAG_HEADER, etag);
@@ -397,7 +401,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         routeMatcher.deleteWithRegEx(prefix + ".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
                 final String path = cleanPath(request.path().substring(prefix.length()));
-                if(log.isTraceEnabled()) {
+                if (log.isTraceEnabled()) {
                     log.trace("RestStorageHandler delete resource: " + request.uri());
                 }
                 storage.delete(path, new Handler<Resource>() {
@@ -416,7 +420,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         routeMatcher.get(".*", new Handler<HttpServerRequest>() {
             public void handle(final HttpServerRequest request) {
-                if(log.isTraceEnabled()) {
+                if (log.isTraceEnabled()) {
                     log.trace("RestStorageHandler resource not found: " + request.uri());
                 }
                 request.response().setStatusCode(404);
@@ -447,20 +451,27 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         }
         return value;
     }
-    
+
     public static class OffsetLimit {
-    	public OffsetLimit(int offset, int limit) {
-			this.offset = offset;
-			this.limit = limit;
-		}
-		public int offset;
-    	public int limit;
+        public OffsetLimit(int offset, int limit) {
+            this.offset = offset;
+            this.limit = limit;
+        }
+
+        public int offset;
+        public int limit;
     }
 
-    private void respondWithNotAllowed(HttpServerRequest request){
+    private void respondWithNotAllowed(HttpServerRequest request) {
         request.response().setStatusCode(405);
         request.response().setStatusMessage("Method Not Allowed");
         request.response().end("405 Method Not Allowed");
+    }
+
+    private void respondWithBadRequest(HttpServerRequest request, String responseMessage) {
+        request.response().setStatusCode(400);
+        request.response().setStatusMessage("Bad Request");
+        request.response().end(responseMessage);
     }
 
     private String collectionName(String path) {
