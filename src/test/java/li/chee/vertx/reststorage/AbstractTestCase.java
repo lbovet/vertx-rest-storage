@@ -29,14 +29,14 @@ public abstract class AbstractTestCase {
             .setBasePath("/")
             .build();
 
-//    @BeforeClass
+    @BeforeClass
     public static void config() {
         if(!RedisEmbeddedConfiguration.useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.start();
         }
     }
 
-//    @AfterClass
+    @AfterClass
     public static void stopRedis() {
         if(!RedisEmbeddedConfiguration.useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.stop();
