@@ -9,6 +9,7 @@
 package li.chee.vertx.reststorage.lua;
 
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import li.chee.vertx.reststorage.JedisFactory;
 import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
 import org.junit.After;
 import org.junit.AfterClass;

@@ -14,12 +14,13 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import io.vertx.core.json.JsonObject;
+import redis.clients.jedis.Jedis;
 
 @RunWith(VertxUnitRunner.class)
 public abstract class AbstractTestCase {
 
     Vertx vertx;
-    private final String address = "test.redis.client";
+    Jedis jedis = null;
 
     // restAssured Configuration
     private static final int REST_STORAGE_PORT = 8989;
@@ -46,6 +47,7 @@ public abstract class AbstractTestCase {
     @Before
     public void setUp(TestContext context) {
         vertx = Vertx.vertx();
+        jedis = JedisFactory.createJedis();
 
         // RestAssured Configuration
         RestAssured.port = REST_STORAGE_PORT;
@@ -56,7 +58,6 @@ public abstract class AbstractTestCase {
         JsonObject storageConfig = new JsonObject();
         storageConfig.put("storage", "redis");
         storageConfig.put("storageAddress", "rest-storage");
-        storageConfig.put("redisAddress", address);
         storageConfig.put("redisHost", "localhost");
         storageConfig.put("redisPort", 6379);
         vertx.deployVerticle("li.chee.vertx.reststorage.RestStorageMod", new DeploymentOptions().setConfig(storageConfig), context.asyncAssertSuccess(stringAsyncResult1 -> {
@@ -67,6 +68,8 @@ public abstract class AbstractTestCase {
 
     @After
     public void tearDown(TestContext context) {
+        jedis.flushAll();
+        jedis.close();
         vertx.close(context.asyncAssertSuccess());
     }
 }
