@@ -1,16 +1,17 @@
 package li.chee.vertx.reststorage;
 
-import com.jayway.restassured.RestAssured;
-import org.junit.After;
-import org.junit.Before;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.core.IsNot.not;
-import static org.vertx.testtools.VertxAssert.*;
 
+@RunWith(VertxUnitRunner.class)
 public class EtagTest extends AbstractTestCase {
     private final String ETAG_HEADER = "Etag";
     private final String IF_NONE_MATCH_HEADER = "if-none-match";
@@ -18,12 +19,13 @@ public class EtagTest extends AbstractTestCase {
     private final String MAX_EXPIRE_IN_MILLIS = "9999999999999";
 
     @Test
-    public void testEtag() {
+    public void testEtag(TestContext context) {
+        Async async = context.async();
         with().body("{ \"foo\": \"bar\" }").put("resources/res1");
 
         String etag = get("resources/res1").getHeader(ETAG_HEADER);
-        assertNotNull("Etag header should be available in response headers", etag);
-        assertTrue("Etag header should not be empty", etag.length() > 0);
+        context.assertNotNull(etag, "Etag header should be available in response headers");
+        context.assertTrue(etag.length() > 0, "Etag header should not be empty");
 
         // get requests with no if-none-match header should result in statuscode 200
         when().get("resources/res1").then().assertThat()
@@ -52,11 +54,12 @@ public class EtagTest extends AbstractTestCase {
         when().get("resources/res1").then().assertThat()
                 .header(ETAG_HEADER, not(equalTo(etag)))
                 .statusCode(200);
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testEtagPUTWithoutHeader(){
+    public void testEtagPUTWithoutHeader(TestContext context){
+        Async async = context.async();
         String content = "{ \"foo\": \"bar\" }";
         with().body(content).put("resources/res1");
         String etag = get("resources/res1").getHeader(ETAG_HEADER);
@@ -67,11 +70,12 @@ public class EtagTest extends AbstractTestCase {
                 .header(ETAG_HEADER, not(equalTo("")))
                 .body(equalTo(content2))
                 .statusCode(200);
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testEtagPUTWithHeader(){
+    public void testEtagPUTWithHeader(TestContext context){
+        Async async = context.async();
         String content = "{ \"foo\": \"bar\" }";
         with().body(content).put("resources/res1");
         String etag = get("resources/res1").getHeader(ETAG_HEADER);
@@ -82,11 +86,12 @@ public class EtagTest extends AbstractTestCase {
                 .header(ETAG_HEADER, not(equalTo("")))
                 .body(equalTo(content))
                 .statusCode(200);
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testEtagAndExpiryPUTWithHeader(){
+    public void testEtagAndExpiryPUTWithHeader(TestContext context){
+        Async async = context.async();
         String content = "{ \"foo\": \"bar\" }";
         with().body(content).put("resources/res1");
         String etag = get("resources/res1").getHeader(ETAG_HEADER);
@@ -119,15 +124,16 @@ public class EtagTest extends AbstractTestCase {
                 .header(ETAG_HEADER, not(equalTo("")))
                 .body(equalTo(content4))
                 .statusCode(200);
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testInitialEtagPUT(){
+    public void testInitialEtagPUT(TestContext context){
+        Async async = context.async();
         String content = "{ \"foo\": \"bar\" }";
         with().header(IF_NONE_MATCH_HEADER, "myFancyEtagValue").body(content).put("resources/res1");
         String etag = get("resources/res1").getHeader(ETAG_HEADER);
-        assertEquals("myFancyEtagValue", etag);
+        context.assertEquals("myFancyEtagValue", etag);
         String content2 = "{ \"foo2\": \"bar2\" }";
         given().header(IF_NONE_MATCH_HEADER, etag).body(content2).when().put("resources/res1").then().assertThat().statusCode(304);
         when().get("resources/res1").then().assertThat()
@@ -135,6 +141,6 @@ public class EtagTest extends AbstractTestCase {
                 .header(ETAG_HEADER, not(equalTo("")))
                 .body(equalTo(content))
                 .statusCode(200);
-        testComplete();
+        async.complete();
     }
 }

@@ -1,20 +1,23 @@
 package li.chee.vertx.reststorage;
 
-import com.jayway.restassured.RestAssured;
-import org.junit.Before;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
-import static com.jayway.restassured.RestAssured.*;
+import static com.jayway.restassured.RestAssured.given;
+import static com.jayway.restassured.RestAssured.with;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
-import static org.vertx.testtools.VertxAssert.testComplete;
 
+@RunWith(VertxUnitRunner.class)
 public class OffsetTest extends AbstractTestCase {
 
     @Test
-    public void testInvalidOffsets() {
-
+    public void testInvalidOffsets(TestContext context) {
+        Async async = context.async();
         for(int i=1; i<=10; i++) {
             with().body("{ \"foo\": \"bar"+i+"\" }")
                     .put("resources/res"+i);
@@ -35,12 +38,12 @@ public class OffsetTest extends AbstractTestCase {
 
         given().param("delta", 0).when().get("resources/?offset=-1&limit=-1")
                 .then().assertThat().body("resources", hasItem("res10"));
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testValidLimits() {
-
+    public void testValidLimits(TestContext context) {
+        Async async = context.async();
         for(int i=1; i<=10; i++) {
             with().body("{ \"foo\": \"bar"+i+"\" }")
                     .put("resources/res"+i);
@@ -64,12 +67,12 @@ public class OffsetTest extends AbstractTestCase {
                 .then().assertThat()
                 .body("resources", hasItems("res1","res10","res2","res3","res4","res5","res7"))
                 .body("resources", not(hasItems("res8","res9")));
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testValidOffsets() {
-
+    public void testValidOffsets(TestContext context) {
+        Async async = context.async();
         for(int i=1; i<=10; i++) {
             with().body("{ \"foo\": \"bar"+i+"\" }")
                     .put("resources/res"+i);
@@ -93,12 +96,12 @@ public class OffsetTest extends AbstractTestCase {
         given().param("delta", 0).when().get("resources?offset=11")
                 .then().assertThat()
                 .body("resources", not(hasItems("res1","res2","res3","res4","res5","res6","res7","res8","res9","res10")) );
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testInvalidLimitsOffsets() {
-
+    public void testInvalidLimitsOffsets(TestContext context) {
+        Async async = context.async();
         for(int i=1; i<=10; i++) {
             with().body("{ \"foo\": \"bar"+i+"\" }")
                     .put("resources/res"+i);
@@ -120,12 +123,12 @@ public class OffsetTest extends AbstractTestCase {
         given().param("delta", 0).when().get("resources?offset=99&limit=4")
                 .then().assertThat()
                 .body("resources", not(hasItems("res1","res2","res3","res4","res5","res6","res7","res8","res9","res10")) );
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testValidLimitsOffsets() {
-
+    public void testValidLimitsOffsets(TestContext context) {
+        Async async = context.async();
         for(int i=1; i<=10; i++) {
             with().body("{ \"foo\": \"bar"+i+"\" }")
                     .put("resources/res"+i);
@@ -147,6 +150,6 @@ public class OffsetTest extends AbstractTestCase {
         given().param("delta", 0).when().get("resources?offset=1&limit=10")
                 .then().assertThat()
                 .body("resources", hasItems("res10","res2","res3","res4","res5","res6","res7","res8","res9"));
-        testComplete();
+        async.complete();
     }
 }

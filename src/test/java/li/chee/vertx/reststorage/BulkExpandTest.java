@@ -11,15 +11,18 @@ package li.chee.vertx.reststorage;
 import com.jayway.restassured.RestAssured;
 import com.jayway.restassured.http.ContentType;
 import com.jayway.restassured.response.Response;
-import org.junit.Assert;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
-import static org.vertx.testtools.VertxAssert.testComplete;
 
 
+@RunWith(VertxUnitRunner.class)
 public class BulkExpandTest extends AbstractTestCase {
 
     final String ETAG_HEADER = "Etag";
@@ -35,7 +38,8 @@ public class BulkExpandTest extends AbstractTestCase {
     }
 
     @Test
-    public void testPOSTWithoutExpandParam() {
+    public void testPOSTWithoutExpandParam(TestContext context) {
+        Async async = context.async();
         given()
                 .body("{ \"foo\": \"bar1\" }")
                 .when()
@@ -43,11 +47,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .then()
                 .assertThat().statusCode(405);
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testPOSTWithWrongBody() {
+    public void testPOSTWithWrongBody(TestContext context) {
+        Async async = context.async();
         given()
                 .body("{ \"foo\": \"bar1\" }")
                 .when()
@@ -80,12 +85,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .assertThat().statusCode(BAD_REQUEST)
                 .assertThat().body(equalTo(BAD_REQUEST_PARSE_MSG));
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testSimpleWith3Resources() {
-
+    public void testSimpleWith3Resources(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
@@ -103,12 +108,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .body("res2.foo", equalTo("bar2"))
                 .body("res3.foo", equalTo("bar3"));
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testSimpleWithUnknownSubResources() {
-
+    public void testSimpleWithUnknownSubResources(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
@@ -126,12 +131,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .body("res1.foo", equalTo("bar1"))
                 .body("res3.foo", equalTo("bar3"));
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testSimpleWithMissingSubResources() {
-
+    public void testSimpleWithMissingSubResources(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
@@ -148,12 +153,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .body("res1.foo", equalTo("bar1"))
                 .body("res3.foo", equalTo("bar3"));
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testSimpleWithEmptyResult() {
-
+    public void testSimpleWithEmptyResult(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         given()
@@ -163,12 +168,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .then()
                 .assertThat().statusCode(404);
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testSimpleWithResourcesAndCollections() {
-
+    public void testSimpleWithResourcesAndCollections(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
@@ -223,12 +228,12 @@ public class BulkExpandTest extends AbstractTestCase {
                 .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
                 .body("level1", hasItems("anothersub/", "sub/"));
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testSameEtagForSameResult() {
-
+    public void testSameEtagForSameResult(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
@@ -253,15 +258,15 @@ public class BulkExpandTest extends AbstractTestCase {
                 .post(POST_STORAGE_EXP);
         String etagPost3 = post3.getHeader(ETAG_HEADER);
 
-        Assert.assertEquals(etagPost1, etagPost2);
-        Assert.assertNotEquals(etagPost2, etagPost3);
+        context.assertEquals(etagPost1, etagPost2);
+        context.assertNotEquals(etagPost2, etagPost3);
 
-        testComplete();
+        async.complete();
     }
 
     @Test
-    public void testIfNoneMatchHeaderProvided() {
-
+    public void testIfNoneMatchHeaderProvided(TestContext context) {
+        Async async = context.async();
         delete("/server/resources");
 
         with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
@@ -276,8 +281,8 @@ public class BulkExpandTest extends AbstractTestCase {
                 .post(POST_STORAGE_EXP);
         String etagPost1 = post1.getHeader(ETAG_HEADER);
 
-        Assert.assertNotNull(etagPost1);
-        Assert.assertNotEquals(etagPost1, etag);
+        context.assertNotNull(etagPost1);
+        context.assertNotEquals(etagPost1, etag);
 
         given().header(IF_NONE_MATCH_HEADER, etagPost1)
                 .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
@@ -286,6 +291,6 @@ public class BulkExpandTest extends AbstractTestCase {
                 .then()
                 .assertThat().statusCode(304);
 
-        testComplete();
+        async.complete();
     }
 }

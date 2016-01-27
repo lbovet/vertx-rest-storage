@@ -18,39 +18,6 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
 
     private static final double MAX_EXPIRE_IN_MILLIS = 9999999999999d;
 
-    Jedis jedis = null;
-
-    protected static boolean useExternalRedis() {
-        String externalRedis = System.getenv("EXTERNAL_REDIS");
-        return externalRedis != null;
-    }
-
-    @BeforeClass
-    public static void config() {
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.start();
-        }
-    }
-
-    @AfterClass
-    public static void stopRedis() {
-        if(!useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.stop();
-        }
-    }
-
-    @Before
-    public void connect() {
-        jedis = JedisFactory.createJedis();
-        jedis.flushAll();
-    }
-
-    @After
-    public void disconnect() {
-        jedis.flushAll();
-        jedis.close();
-    }
-
     @Test
     public void cleanupAllExpiredAmount2() throws InterruptedException {
 

@@ -8,11 +8,13 @@
 
 package li.chee.vertx.reststorage.lua;
 
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import li.chee.vertx.reststorage.RedisEmbeddedConfiguration;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
 
 import java.io.BufferedReader;
@@ -24,6 +26,7 @@ import java.util.UUID;
 /**
  * Abstract class containing common methods for LuaScript tests
  */
+@RunWith(VertxUnitRunner.class)
 public abstract class AbstractLuaScriptTest {
 
     final static String prefixResources = "rest-storage:resources";
@@ -36,14 +39,14 @@ public abstract class AbstractLuaScriptTest {
 
     Jedis jedis = null;
 
-    @BeforeClass
+//    @BeforeClass
     public static void config() {
         if (!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.start();
         }
     }
 
-    @AfterClass
+//    @AfterClass
     public static void stopRedis() {
         if (!useExternalRedis()) {
             RedisEmbeddedConfiguration.redisServer.stop();

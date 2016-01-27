@@ -10,7 +10,7 @@ package li.chee.vertx.reststorage.lua;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
-import org.vertx.java.core.json.JsonArray;
+import io.vertx.core.json.JsonArray;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -297,7 +297,7 @@ public class RedisBulkExpandLuaScriptTests extends AbstractLuaScriptTest {
         JsonArray jsonArray = new JsonArray(valueStr);
         for (Object arr : jsonArray) {
             JsonArray subArr = (JsonArray) arr;
-            result.add(Arrays.asList((String)subArr.get(0), (String)subArr.get(1)));
+            result.add(Arrays.asList(subArr.getString(0), subArr.getString(1)));
         }
         return result;
     }
