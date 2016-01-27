@@ -64,6 +64,7 @@ public class PathLevelTest extends AbstractTestCase {
     @Test
     public void testPutResourceOverCollection(TestContext context) {
         Async async = context.async();
+        delete("/tests/crush/");
         given().
                 body("{ \"foo\": \"bar\" }").
                 when().
@@ -78,14 +79,13 @@ public class PathLevelTest extends AbstractTestCase {
                 then().
                 assertThat().statusCode(405);
 
-        // cleanup
-        delete("");
         async.complete();
     }
 
     @Test
     public void testPutCollectionOverResource(TestContext context) {
         Async async = context.async();
+        delete("/tests/crush/");
         given().
                 body("{ \"foo\": \"bar\" }").
                 when().
@@ -100,8 +100,6 @@ public class PathLevelTest extends AbstractTestCase {
                 then().
                 assertThat().statusCode(405);
 
-        // cleanup
-        delete("");
         async.complete();
     }
 }
