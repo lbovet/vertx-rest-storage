@@ -81,9 +81,9 @@ Configuration
 ### Redis Storage
 
 	{
-		"storage": "redis",      
-		"address": "redis-client2" // The event bus address of the redis client busmod. 
-		                           // Defaults to "redis-client".                  
+		"storage": "redis",
+		"redisHost": "localHost",  // The host where redis is running, defaults to "localHost"
+		"redisPort": 6379,         // The port where redis is runnig, defaults to 6379                  
 		"root": "test",            // The prefix for the redis keys containing the data. 
 		                           // Defaults to "rest-storage". 
 		                        
@@ -94,7 +94,7 @@ Caution: The redis storage implementation does not currently support streaming. 
 Dependencies
 ------------
 
-Redis persistence uses the redis-client busmod "de.marx-labs.redis-client". You must deploy it yourself.
+This module uses Vert.x v3.2.0 (or later), so **Java 8** is required.
 
 Use gradle with alternative repositories
 ----------------------------------------
