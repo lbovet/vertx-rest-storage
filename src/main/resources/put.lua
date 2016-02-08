@@ -70,3 +70,5 @@ elseif expiration == maxexpiration then
     redis.log(redis.LOG_NOTICE, "zrem: "..expirableSet.." "..resourcesPrefix..KEYS[1])
     redis.call('zrem', expirableSet, resourcesPrefix..KEYS[1])
 end
+
+return "OK";

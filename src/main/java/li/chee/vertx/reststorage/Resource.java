@@ -1,7 +1,6 @@
 package li.chee.vertx.reststorage;
 
-import org.vertx.java.core.Handler;
-
+import io.vertx.core.Handler;
 
 public class Resource implements Comparable<Resource>{
     public String name;

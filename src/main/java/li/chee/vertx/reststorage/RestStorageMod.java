@@ -1,24 +1,27 @@
 package li.chee.vertx.reststorage;
 
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.http.HttpServerRequest;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
-import org.vertx.java.platform.Verticle;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
-public class RestStorageMod extends Verticle {
+public class RestStorageMod extends AbstractVerticle {
+
+    private Logger log = LoggerFactory.getLogger(RestStorageMod.class);
 
     @Override
-    public void start() {
+    public void start(Future<Void> fut) {
 
-        JsonObject config = container.config();
-        Logger log = container.logger();
+        JsonObject config = config();
 
         String storageName = config.getString("storage", "filesystem");
-        int port = config.getNumber("port", 8989).intValue();
+        int port = config.getInteger("port", 8989);
         String prefix = config.getString("prefix", "");
         String storageAddress = config.getString("storageAddress", "resource-storage");
-        JsonObject editorConfig = config.getObject("editors");
+        JsonObject editorConfig = config.getJsonObject("editors");
         prefix = prefix.equals("/") ? "" : prefix;
 
         Storage storage;
@@ -28,24 +31,20 @@ public class RestStorageMod extends Verticle {
             storage = new FileSystemStorage(vertx, root);
             break;
         case "redis":
-            if (config.getObject("redisConfig") != null) {
-                container.deployModule("io.vertx~mod-redis~1.1.3", config.getObject("redisConfig"));
-            }
-            String redisAddress = config.getString("redisAddress", "redis-client");
-            String redisResourcesPrefix = config.getString("resourcesPrefix", "rest-storage:resources");
-            String redisCollectionsPrefix = config.getString("collectionsPrefix", "rest-storage:collections");
-            String redisDeltaResourcesPrefix = config.getString("deltaResourcesPrefix", "delta:resources");
-            String redisDeltaEtagsPrefix = config.getString("deltaEtagsPrefix", "delta:etags");
-            String expirableSet = config.getString("expirablePrefix", "rest-storage:expirable");
-            Long cleanupResourcesAmount = config.getLong("resourceCleanupAmount", 100000);
-            storage = new RedisStorage(vertx, log, redisAddress, redisResourcesPrefix, redisCollectionsPrefix, redisDeltaResourcesPrefix, redisDeltaEtagsPrefix, expirableSet, cleanupResourcesAmount);
+            storage = new RedisStorage(vertx, log, config);
             break;
         default:
             throw new RuntimeException("Storage not supported: " + storageName);
         }
 
-        Handler<HttpServerRequest> handler = new RestStorageHandler(log, storage, prefix, editorConfig);
-        vertx.createHttpServer().requestHandler(handler).listen(port);
-        new EventBusAdapter().init(vertx, storageAddress, handler);
+        Handler<HttpServerRequest> handler = new RestStorageHandler(vertx, log, storage, prefix, editorConfig);
+        vertx.createHttpServer().requestHandler(handler).listen(port, result -> {
+            if(result.succeeded()){
+                new EventBusAdapter().init(vertx, storageAddress, handler);
+                fut.complete();
+            } else {
+                fut.fail(result.cause());
+            }
+        });
     }
 }

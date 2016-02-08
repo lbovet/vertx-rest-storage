@@ -1,8 +1,7 @@
 package li.chee.vertx.reststorage.lua;
 
-import org.apache.commons.lang.StringUtils;
+import io.vertx.core.json.JsonObject;
 import org.junit.Test;
-import org.vertx.java.core.json.JsonObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +9,6 @@ import java.util.UUID;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
 
@@ -136,7 +134,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutTest2));
+        assertThat(resultPutTest2, equalTo("OK"));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("test2"));
         assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
@@ -154,7 +152,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutTest2));
+        assertThat(resultPutTest2, equalTo("OK"));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("test1:"));
         assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
@@ -172,7 +170,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutTest2));
+        assertThat(resultPutTest2, equalTo("OK"));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("test:"));
         assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
@@ -190,7 +188,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         List<String> valueTest2 = (List<String>) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutTest2));
+        assertThat(resultPutTest2, equalTo("OK"));
         assertThat(resultPutTest1, equalTo("existingCollection"));
         assertThat(valueTest1, hasItem("server:"));
         assertThat(valueTest2.get(1), equalTo("{\"content\": \"test/test1/test2\"}"));
@@ -208,7 +206,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         String valueTest2 = (String) evalScriptGet(":project:server:test:test1:test2");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutTest1));
+        assertThat(resultPutTest1, equalTo("OK"));
         assertThat(resultPutTest2, equalTo("existingResource rest-storage:resources:project:server:test:test1"));
         assertThat(valueTest1.get(1), equalTo("{\"content\": \"test/test1\"}"));
         assertThat(valueTest2, equalTo("notFound"));
@@ -226,7 +224,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         String valueTest3 = (String) evalScriptGet(":project:server:test:test1:test2:test3");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutTest1));
+        assertThat(resultPutTest1, equalTo("OK"));
         assertThat(resultPutTest3, equalTo("existingResource rest-storage:resources:project:server:test:test1"));
         assertThat(valueTest1.get(1), equalTo("{\"content\": \"test/test1\"}"));
         assertThat(valueTest3, equalTo("notFound"));
@@ -244,7 +242,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         String valueServer = (String) evalScriptGet(":project:server");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutNemo));
+        assertThat(resultPutNemo, equalTo("OK"));
         assertThat(resultPutNemoServer, equalTo("existingResource rest-storage:resources:project"));
         assertThat(valueNemo.get(1), equalTo("{\"content\": \"nemo\"}"));
         assertThat(valueServer, equalTo("notFound"));
@@ -262,7 +260,7 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         String valueServer = (String) evalScriptGet(":nemo:server:tests:crush:test1:test2:test3");
 
         // ASSERT
-        assertTrue(StringUtils.isEmpty(resultPutNemo));
+        assertThat(resultPutNemo, equalTo("OK"));
         assertThat(resultPutNemoServer, equalTo("existingResource rest-storage:resources:nemo:server:tests:crush:test1"));
         assertThat(valueNemo.get(1), equalTo("{\"content\": \"nemo\"}"));
         assertThat(valueServer, equalTo("notFound"));

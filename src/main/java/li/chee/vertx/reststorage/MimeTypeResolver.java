@@ -8,7 +8,7 @@ import java.util.Properties;
 
 public class MimeTypeResolver {
 
-    private Map<String, String> mimeTypes = new HashMap<String,String>();
+    private Map<String, String> mimeTypes = new HashMap<>();
     
     private String defaultMimeType;
     

@@ -1,8 +1,8 @@
 package li.chee.vertx.reststorage;
 
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.streams.ReadStream;
-import org.vertx.java.core.streams.WriteStream;
+import io.vertx.core.Handler;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
 
 public class DocumentResource extends Resource {
     public long length;

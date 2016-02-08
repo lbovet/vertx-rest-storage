@@ -1,6 +1,6 @@
 package li.chee.vertx.reststorage;
 
-import org.vertx.java.core.Handler;
+import io.vertx.core.Handler;
 
 import java.util.List;
 

@@ -9,18 +9,22 @@ public class UrlParser {
         }
         int limit = -1;
         int offset = 0;
-        try {
-            offset = Integer.valueOf(offsetFromUrl).intValue();
-            offset = offset < 0 ? 0 : offset;
-        } catch (Exception e) {
-            // do nothing here
+        if(offsetFromUrl != null) {
+            try {
+                offset = Integer.valueOf(offsetFromUrl);
+                offset = offset < 0 ? 0 : offset;
+            } catch (Exception e) {
+                // do nothing here
+            }
         }
-        
-        try {
-            limit = Integer.valueOf(limitFromUrl).intValue();
-            limit = limit < -1 ? -1 : limit;
-        } catch (Exception e) {
-            // do nothing here
+
+        if(limitFromUrl != null) {
+            try {
+                limit = Integer.valueOf(limitFromUrl);
+                limit = limit < -1 ? -1 : limit;
+            } catch (Exception e) {
+                // do nothing here
+            }
         }
         
         offsetValues.offset = offset;
