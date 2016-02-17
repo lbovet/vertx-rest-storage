@@ -89,6 +89,53 @@ public class BulkExpandTest extends AbstractTestCase {
     }
 
     @Test
+    public void testWithInvalidResource(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
+
+        // invalid
+        with().body("{ \"foo\"}").put("/server/resources/res2");
+
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(500)
+                .body(startsWith("Error decoding resource 'res2'"));
+
+        async.complete();
+    }
+
+    @Test
+    public void testWithMultipleInvalidResources(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        // invalid
+        with().body("{ \"foo\": \"bar1\"").put("/server/resources/res1");
+
+        // invalid
+        with().body("{ \"foo\"}").put("/server/resources/res2");
+
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(500)
+                .body(startsWith("Error decoding resource 'res1'"));
+
+        async.complete();
+    }
+
+    @Test
     public void testSimpleWith3Resources(TestContext context) {
         Async async = context.async();
         delete("/server/resources");

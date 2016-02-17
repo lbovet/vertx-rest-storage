@@ -3,6 +3,7 @@ package li.chee.vertx.reststorage;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -446,7 +447,12 @@ public class RedisStorage implements Storage {
                         if(subResourceValue.startsWith("[") && subResourceValue.endsWith("]")){
                             expandResult.put(subResourceName, extractSortedJsonArray(subResourceValue));
                         } else {
-                            expandResult.put(subResourceName, new JsonObject(subResourceValue));
+                            try {
+                                expandResult.put(subResourceName, new JsonObject(subResourceValue));
+                            }catch (DecodeException ex){
+                                invalid(handler, subResourceName, "Error decoding resource '" + subResourceName + "'. Message: " + ex.getMessage());
+                                return;
+                            }
                         }
                     }
 
@@ -669,7 +675,6 @@ public class RedisStorage implements Storage {
                         } else {
                             luaScripts.get(LuaScript.PUT).loadLuaScript(new Put(d, keys, arguments, handler), executionCounter);
                         }
-                        return;
                     } else if (message != null && d.errorHandler != null){
                         d.errorHandler.handle(message);
                     }
@@ -846,6 +851,13 @@ public class RedisStorage implements Storage {
     private void notModified(Handler<Resource> handler){
         Resource r = new Resource();
         r.modified = false;
+        handler.handle(r);
+    }
+
+    private void invalid(Handler<Resource> handler, String resourceName, String invalidMessage){
+        Resource r = new Resource();
+        r.invalid = true;
+        r.invalidMessage = invalidMessage;
         handler.handle(r);
     }
 

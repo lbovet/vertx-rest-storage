@@ -4,9 +4,11 @@ import io.vertx.core.Handler;
 
 public class Resource implements Comparable<Resource>{
     public String name;
-    public boolean exists=true;
-    public boolean modified=true;
-    
+    public boolean exists = true;
+    public boolean modified = true;
+    public boolean invalid = false;
+    public String invalidMessage;
+
     public Handler<String> errorHandler;
     
     @Override

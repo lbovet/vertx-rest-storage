@@ -53,11 +53,32 @@ public class RedisBulkExpandLuaScriptTests extends AbstractLuaScriptTest {
         evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}");
 
         // ACT
-        List<List<String>> value = evalScriptBulkExpandAndExtract(":project:server:test", new ArrayList<String>());
+        List<List<String>> value = evalScriptBulkExpandAndExtract(":project:server:test", new ArrayList<>());
 
         // ASSERT
         assertNotNull(value);
         assertThat(value.size(), equalTo(0));
+    }
+
+    /**
+     * BulkExpand does not care about correct (json) content.
+     */
+    @Test
+    public void testBulkExpandInvalidSubresources() {
+
+        // ARRANGE
+        evalScriptPut(":project:server:test:item1", "{\"content\": \"content_1\"}");
+        evalScriptPut(":project:server:test:item2", "{\"content\": \"content_2\"}");
+        evalScriptPut(":project:server:test:item3", "{\"content\"");
+
+        // ACT
+        List<String> subResources = Arrays.asList("item1", "item2", "item3");
+        List<List<String>> value = evalScriptBulkExpandAndExtract(":project:server:test", subResources);
+
+        // ASSERT
+        assertThat(value.size(), equalTo(3));
+        assertThat(value.get(2).get(0), equalTo("item3"));
+        assertThat(value.get(2).get(1), equalTo("{\"content\""));
     }
 
     @Test
