@@ -450,7 +450,7 @@ public class RedisStorage implements Storage {
                             try {
                                 expandResult.put(subResourceName, new JsonObject(subResourceValue));
                             }catch (DecodeException ex){
-                                invalid(handler, subResourceName, "Error decoding resource '" + subResourceName + "'. Message: " + ex.getMessage());
+                                invalid(handler, "Error decoding invalid json resource '" + subResourceName + "'");
                                 return;
                             }
                         }
@@ -854,7 +854,7 @@ public class RedisStorage implements Storage {
         handler.handle(r);
     }
 
-    private void invalid(Handler<Resource> handler, String resourceName, String invalidMessage){
+    private void invalid(Handler<Resource> handler, String invalidMessage){
         Resource r = new Resource();
         r.invalid = true;
         r.invalidMessage = invalidMessage;

@@ -105,7 +105,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if(resource.invalidMessage != null){
                                     message = resource.invalidMessage;
                                 }
-                                ctx.response().end(message);
+                                ctx.response().end(new JsonObject().put("error", message).encode());
                                 return;
                             }
 

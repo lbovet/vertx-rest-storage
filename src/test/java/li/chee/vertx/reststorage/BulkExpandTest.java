@@ -106,7 +106,8 @@ public class BulkExpandTest extends AbstractTestCase {
                 .post(POST_STORAGE_EXP)
                 .then()
                 .assertThat().statusCode(500)
-                .body(startsWith("Error decoding resource 'res2'"));
+                .body("", hasKey("error"))
+                .body("error", equalTo("Error decoding invalid json resource 'res2'"));
 
         async.complete();
     }
@@ -130,7 +131,8 @@ public class BulkExpandTest extends AbstractTestCase {
                 .post(POST_STORAGE_EXP)
                 .then()
                 .assertThat().statusCode(500)
-                .body(startsWith("Error decoding resource 'res1'"));
+                .body("", hasKey("error"))
+                .body("error", equalTo("Error decoding invalid json resource 'res1'"));
 
         async.complete();
     }
