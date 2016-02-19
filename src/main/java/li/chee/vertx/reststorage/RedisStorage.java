@@ -56,9 +56,9 @@ public class RedisStorage implements Storage {
         luaGetScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
         luaScripts.put(LuaScript.GET, luaGetScriptState);
 
-        LuaScriptState luaBulkExpandScriptState = new LuaScriptState(LuaScript.BULK_EXPAND, false);
-        luaBulkExpandScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
-        luaScripts.put(LuaScript.BULK_EXPAND, luaBulkExpandScriptState);
+        LuaScriptState luaStorageExpandScriptState = new LuaScriptState(LuaScript.STORAGE_EXPAND, false);
+        luaStorageExpandScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
+        luaScripts.put(LuaScript.STORAGE_EXPAND, luaStorageExpandScriptState);
 
         LuaScriptState luaPutScriptState = new LuaScriptState(LuaScript.PUT, false);
         luaPutScriptState.loadLuaScript(new RedisCommandDoNothing(), 0);
@@ -74,7 +74,7 @@ public class RedisStorage implements Storage {
     }
 
     private enum LuaScript {
-        GET("get.lua"), BULK_EXPAND("bulkExpand.lua"), PUT("put.lua"), DELETE("del.lua"), CLEANUP("cleanup.lua");
+        GET("get.lua"), STORAGE_EXPAND("storageExpand.lua"), PUT("put.lua"), DELETE("del.lua"), CLEANUP("cleanup.lua");
 
         private String file;
 
@@ -391,7 +391,7 @@ public class RedisStorage implements Storage {
     }
 
     @Override
-    public void bulkExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
+    public void storageExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
         final String key = encodePath(path);
         List<String> keys = Collections.singletonList(key);
         List<String> arguments = Arrays.asList(
@@ -403,22 +403,22 @@ public class RedisStorage implements Storage {
                 StringUtils.join(subResources, ";"),
                 String.valueOf(subResources.size())
         );
-        reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.BULK_EXPAND, new BulkExpand(keys, arguments, handler, etag), 0);
+        reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.STORAGE_EXPAND, new StorageExpand(keys, arguments, handler, etag), 0);
     }
 
     /**
-     * The BulkExpand Command Execution.
+     * The StorageExpand Command Execution.
      * If the get script cannot be found under the sha in luaScriptState, reload the script.
      * To avoid infinite recursion, we limit the recursion.
      */
-    private class BulkExpand implements RedisCommand {
+    private class StorageExpand implements RedisCommand {
 
         private List<String> keys;
         private List<String> arguments;
         private Handler<Resource> handler;
         private String etag;
 
-        public BulkExpand(List<String> keys, List<String> arguments, final Handler<Resource> handler, String etag) {
+        public StorageExpand(List<String> keys, List<String> arguments, final Handler<Resource> handler, String etag) {
             this.keys = keys;
             this.arguments = arguments;
             this.handler = handler;
@@ -426,7 +426,7 @@ public class RedisStorage implements Storage {
         }
 
         public void exec(final int executionCounter) {
-            redisClient.evalsha(luaScripts.get(LuaScript.BULK_EXPAND).getSha(), keys, arguments, event -> {
+            redisClient.evalsha(luaScripts.get(LuaScript.STORAGE_EXPAND).getSha(), keys, arguments, event -> {
                 if(event.succeeded()){
                     Object value = event.result().getValue(0);
                     if (log.isTraceEnabled()) {
@@ -474,12 +474,12 @@ public class RedisStorage implements Storage {
                 } else {
                     String message = event.cause().getMessage();
                     if(message != null && message.startsWith("NOSCRIPT")) {
-                        log.warn("bulkExpand script couldn't be found, reload it");
+                        log.warn("storageExpand script couldn't be found, reload it");
                         log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
                         if(executionCounter > 10) {
                             log.error("amount the script got loaded is higher than 10, we abort");
                         } else {
-                            luaScripts.get(LuaScript.BULK_EXPAND).loadLuaScript(new BulkExpand(keys, arguments, handler, etag), executionCounter);
+                            luaScripts.get(LuaScript.STORAGE_EXPAND).loadLuaScript(new StorageExpand(keys, arguments, handler, etag), executionCounter);
                         }
                     }
                 }

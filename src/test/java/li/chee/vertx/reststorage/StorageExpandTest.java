@@ -23,13 +23,13 @@ import static org.hamcrest.Matchers.*;
 
 
 @RunWith(VertxUnitRunner.class)
-public class BulkExpandTest extends AbstractTestCase {
+public class StorageExpandTest extends AbstractTestCase {
 
     final String ETAG_HEADER = "Etag";
     final String IF_NONE_MATCH_HEADER = "if-none-match";
-    final String POST_STORAGE_EXP = "/server/resources?bulkExpand=true";
+    final String POST_STORAGE_EXP = "/server/resources?storageExpand=true";
     final int BAD_REQUEST = 400;
-    final String BAD_REQUEST_PARSE_MSG = "Bad Request: Unable to parse body of bulkExpand POST request";
+    final String BAD_REQUEST_PARSE_MSG = "Bad Request: Unable to parse body of storageExpand POST request";
 
     @Before
     public void setPath() {

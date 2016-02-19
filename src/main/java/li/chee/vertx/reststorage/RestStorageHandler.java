@@ -26,7 +26,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
     private static final String OFFSET_PARAMETER = "offset";
     private static final String LIMIT_PARAMETER = "limit";
-    private static final String BULK_EXPAND_PARAMETER = "bulkExpand";
+    private static final String STORAGE_EXPAND_PARAMETER = "storageExpand";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String CONTENT_LENGTH = "Content-Length";
 
@@ -70,7 +70,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         });
 
         router.postWithRegex(prefix + ".*").handler(ctx -> {
-            if (!ctx.request().params().contains(BULK_EXPAND_PARAMETER)) {
+            if (!ctx.request().params().contains(STORAGE_EXPAND_PARAMETER)) {
                 respondWithNotAllowed(ctx.request());
             } else {
                 ctx.request().bodyHandler(new Handler<Buffer>() {
@@ -89,13 +89,13 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 subResourceNames.add(subResourcesArray.getString(i));
                             }
                         } catch(RuntimeException ex){
-                            respondWithBadRequest(ctx.request(), "Bad Request: Unable to parse body of bulkExpand POST request");
+                            respondWithBadRequest(ctx.request(), "Bad Request: Unable to parse body of storageExpand POST request");
                             return;
                         }
 
                         final String path = cleanPath(ctx.request().path().substring(prefix.length()));
                         final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
-                        storage.bulkExpand(path, etag, subResourceNames, resource -> {
+                        storage.storageExpand(path, etag, subResourceNames, resource -> {
 
                             if(resource.invalid){
                                 ctx.response().setStatusCode(INTERNAL_SERVER_ERROR.getStatusCode());
