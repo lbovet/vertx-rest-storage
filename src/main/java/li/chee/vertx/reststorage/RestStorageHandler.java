@@ -1,11 +1,5 @@
 package li.chee.vertx.reststorage;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -16,24 +10,34 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.streams.Pump;
 import io.vertx.ext.web.Router;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import static li.chee.vertx.reststorage.util.StatusCode.*;
+
 public class RestStorageHandler implements Handler<HttpServerRequest> {
 
-    public static final String EXPIRE_AFTER_HEADER = "x-expire-after";
-    public static final String ETAG_HEADER = "Etag";
-    public static final String IF_NONE_MATCH_HEADER = "if-none-match";
+    private static final String EXPIRE_AFTER_HEADER = "x-expire-after";
+    private static final String ETAG_HEADER = "Etag";
+    private static final String IF_NONE_MATCH_HEADER = "if-none-match";
 
     private static final String OFFSET_PARAMETER = "offset";
     private static final String LIMIT_PARAMETER = "limit";
-    private static final String BULK_EXPAND_PARAMETER = "bulkExpand";
+    private static final String STORAGE_EXPAND_PARAMETER = "storageExpand";
+    private static final String CONTENT_TYPE = "Content-Type";
+    private static final String CONTENT_LENGTH = "Content-Length";
 
-    Logger log;
-    Router router;
+    private Logger log;
+    private Router router;
 
-    MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
+    private MimeTypeResolver mimeTypeResolver = new MimeTypeResolver("application/json; charset=utf-8");
 
-    Map<String, String> editors = new LinkedHashMap<>();
+    private Map<String, String> editors = new LinkedHashMap<>();
 
-    String newMarker = "?new=true";
+    private String newMarker = "?new=true";
 
     public RestStorageHandler(Vertx vertx, final Logger log, final Storage storage, final String prefix, JsonObject editorConfig) {
         this.router = Router.router(vertx);
@@ -53,9 +57,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                 if (log.isTraceEnabled()) {
                     log.trace("RestStorageHandler cleanup");
                 }
-                ctx.response().headers().add("Content-Length", "" + documentResource.length);
-                ctx.response().headers().add("Content-Type", "application/json; charset=utf-8");
-                ctx.response().setStatusCode(200);
+                ctx.response().headers().add(CONTENT_LENGTH, "" + documentResource.length);
+                ctx.response().headers().add(CONTENT_TYPE, "application/json; charset=utf-8");
+                ctx.response().setStatusCode(OK.getStatusCode());
                 final Pump pump = Pump.pump(documentResource.readStream, ctx.response());
                 documentResource.readStream.endHandler(nothing -> {
                     documentResource.closeHandler.handle(null);
@@ -66,7 +70,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         });
 
         router.postWithRegex(prefix + ".*").handler(ctx -> {
-            if (!ctx.request().params().contains(BULK_EXPAND_PARAMETER)) {
+            if (!ctx.request().params().contains(STORAGE_EXPAND_PARAMETER)) {
                 respondWithNotAllowed(ctx.request());
             } else {
                 ctx.request().bodyHandler(new Handler<Buffer>() {
@@ -85,19 +89,31 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 subResourceNames.add(subResourcesArray.getString(i));
                             }
                         } catch(RuntimeException ex){
-                            respondWithBadRequest(ctx.request(), "Bad Request: Unable to parse body of bulkExpand POST request");
+                            respondWithBadRequest(ctx.request(), "Bad Request: Unable to parse body of storageExpand POST request");
                             return;
                         }
 
                         final String path = cleanPath(ctx.request().path().substring(prefix.length()));
                         final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
-                        storage.bulkExpand(path, etag, subResourceNames, resource -> {
+                        storage.storageExpand(path, etag, subResourceNames, resource -> {
+
+                            if(resource.invalid){
+                                ctx.response().setStatusCode(INTERNAL_SERVER_ERROR.getStatusCode());
+                                ctx.response().setStatusMessage(INTERNAL_SERVER_ERROR.getStatusMessage());
+
+                                String message = INTERNAL_SERVER_ERROR.getStatusMessage();
+                                if(resource.invalidMessage != null){
+                                    message = resource.invalidMessage;
+                                }
+                                ctx.response().end(new JsonObject().put("error", message).encode());
+                                return;
+                            }
 
                             if (!resource.modified) {
-                                ctx.response().setStatusCode(304);
-                                ctx.response().setStatusMessage("Not Modified");
+                                ctx.response().setStatusCode(NOT_MODIFIED.getStatusCode());
+                                ctx.response().setStatusMessage(NOT_MODIFIED.getStatusMessage());
                                 ctx.response().headers().set(ETAG_HEADER, etag);
-                                ctx.response().headers().add("Content-Length", "0");
+                                ctx.response().headers().add(CONTENT_LENGTH, "0");
                                 ctx.response().end();
                                 return;
                             }
@@ -112,8 +128,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (documentResource.etag != null && !documentResource.etag.isEmpty()) {
                                     ctx.response().headers().add(ETAG_HEADER, documentResource.etag);
                                 }
-                                ctx.response().headers().add("Content-Length", "" + documentResource.length);
-                                ctx.response().headers().add("Content-Type", mimeType);
+                                ctx.response().headers().add(CONTENT_LENGTH, "" + documentResource.length);
+                                ctx.response().headers().add(CONTENT_TYPE, mimeType);
                                 final Pump pump = Pump.pump(documentResource.readStream, ctx.response());
                                 documentResource.readStream.endHandler(nothing -> {
                                     documentResource.closeHandler.handle(null);
@@ -126,9 +142,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (log.isTraceEnabled()) {
                                     log.trace("RestStorageHandler Could not find resource: " + ctx.request().uri());
                                 }
-                                ctx.response().setStatusCode(404);
-                                ctx.response().setStatusMessage("Not Found");
-                                ctx.response().end("404 Not Found");
+                                ctx.response().setStatusCode(NOT_FOUND.getStatusCode());
+                                ctx.response().setStatusMessage(NOT_FOUND.getStatusMessage());
+                                ctx.response().end(NOT_FOUND.toString());
                             }
                         });
                     }
@@ -153,10 +169,10 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     }
 
                     if (!resource.modified) {
-                        ctx.response().setStatusCode(304);
-                        ctx.response().setStatusMessage("Not Modified");
+                        ctx.response().setStatusCode(NOT_MODIFIED.getStatusCode());
+                        ctx.response().setStatusMessage(NOT_MODIFIED.getStatusMessage());
                         ctx.response().headers().set(ETAG_HEADER, etag);
-                        ctx.response().headers().add("Content-Length", "0");
+                        ctx.response().headers().add(CONTENT_LENGTH, "0");
                         ctx.response().end();
                         return;
                     }
@@ -174,8 +190,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (log.isTraceEnabled()) {
                                     log.trace("RestStorageHandler accept contains text/html and ends with /");
                                 }
-                                ctx.response().setStatusCode(302);
-                                ctx.response().setStatusMessage("Found");
+                                ctx.response().setStatusCode(FOUND.getStatusCode());
+                                ctx.response().setStatusMessage(FOUND.getStatusMessage());
                                 ctx.response().headers().add("Location", ctx.request().uri() + "/");
                                 ctx.response().end();
                             } else if (html) {
@@ -188,8 +204,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     if (log.isTraceEnabled()) {
                                         log.trace("RestStorageHandler query contains follow=off");
                                     }
-                                    ctx.response().setStatusCode(302);
-                                    ctx.response().setStatusMessage("Found");
+                                    ctx.response().setStatusCode(FOUND.getStatusCode());
+                                    ctx.response().setStatusMessage(FOUND.getStatusMessage());
                                     ctx.response().headers().add("Location", (ctx.request().uri()) + collection.items.get(0).name);
                                     ctx.response().end();
                                     return;
@@ -217,8 +233,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     body.append("</li>");
                                 }
                                 body.append("</ul></body></html>");
-                                ctx.response().headers().add("Content-Length", "" + body.length());
-                                ctx.response().headers().add("Content-Type", "text/html; charset=utf-8");
+                                ctx.response().headers().add(CONTENT_LENGTH, "" + body.length());
+                                ctx.response().headers().add(CONTENT_TYPE, "text/html; charset=utf-8");
                                 ctx.response().end(body.toString());
                             } else {
                                 JsonArray array = new JsonArray();
@@ -228,8 +244,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                     log.trace("RestStorageHandler return collection: " + sortedNames);
                                 }
                                 String body = new JsonObject().put(collectionName, array).encode();
-                                ctx.response().headers().add("Content-Length", "" + body.length());
-                                ctx.response().headers().add("Content-Type", "application/json; charset=utf-8");
+                                ctx.response().headers().add(CONTENT_LENGTH, "" + body.length());
+                                ctx.response().headers().add(CONTENT_TYPE, "application/json; charset=utf-8");
                                 ctx.response().end(body);
                             }
                         }
@@ -241,8 +257,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (log.isTraceEnabled()) {
                                     log.trace("RestStorageHandler DocumentResource ends with /");
                                 }
-                                ctx.response().setStatusCode(302);
-                                ctx.response().setStatusMessage("Found");
+                                ctx.response().setStatusCode(FOUND.getStatusCode());
+                                ctx.response().setStatusMessage(FOUND.getStatusMessage());
                                 ctx.response().headers().add("Location", ctx.request().uri().substring(0, ctx.request().uri().length() - 1));
                                 ctx.response().end();
                             } else {
@@ -253,8 +269,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (ctx.request().headers().names().contains("Accept") && ctx.request().headers().get("Accept").contains("text/html")) {
                                     String editor = editors.get(mimeType.split(";")[0]);
                                     if (editor != null) {
-                                        ctx.response().setStatusCode(302);
-                                        ctx.response().setStatusMessage("Found");
+                                        ctx.response().setStatusCode(FOUND.getStatusCode());
+                                        ctx.response().setStatusMessage(FOUND.getStatusMessage());
                                         String editorString = editor.replaceAll("\\$path", path);
                                         ctx.response().headers().add("Location", editorString);
                                         ctx.response().end();
@@ -266,8 +282,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 if (documentResource.etag != null && !documentResource.etag.isEmpty()) {
                                     ctx.response().headers().add(ETAG_HEADER, documentResource.etag);
                                 }
-                                ctx.response().headers().add("Content-Length", "" + documentResource.length);
-                                ctx.response().headers().add("Content-Type", mimeType);
+                                ctx.response().headers().add(CONTENT_LENGTH, "" + documentResource.length);
+                                ctx.response().headers().add(CONTENT_TYPE, mimeType);
                                 final Pump pump = Pump.pump(documentResource.readStream, ctx.response());
                                 documentResource.readStream.endHandler(nothing -> {
                                     documentResource.closeHandler.handle(null);
@@ -281,9 +297,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                         if (log.isTraceEnabled()) {
                             log.trace("RestStorageHandler Could not find resource: " + ctx.request().uri());
                         }
-                        ctx.response().setStatusCode(404);
-                        ctx.response().setStatusMessage("Not Found");
-                        ctx.response().end("404 Not Found");
+                        ctx.response().setStatusCode(NOT_FOUND.getStatusCode());
+                        ctx.response().setStatusMessage(NOT_FOUND.getStatusMessage());
+                        ctx.response().end(NOT_FOUND.toString());
                     }
                 }
 
@@ -313,7 +329,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     expire = Long.parseLong(ctx.request().headers().get(EXPIRE_AFTER_HEADER));
                 } catch (NumberFormatException nfe) {
                     ctx.request().resume();
-                    ctx.response().setStatusCode(400);
+                    ctx.response().setStatusCode(BAD_REQUEST.getStatusCode());
                     ctx.response().setStatusMessage("Invalid expire after parameter: " + ctx.request().headers().get(EXPIRE_AFTER_HEADER));
                     ctx.response().end(ctx.response().getStatusMessage());
                     log.error("Expire after header, invalid value: " + ctx.response().getStatusMessage());
@@ -333,31 +349,31 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     ctx.request().resume();
 
                     if (!resource.modified) {
-                        ctx.response().setStatusCode(304);
-                        ctx.response().setStatusMessage("Not Modified");
+                        ctx.response().setStatusCode(NOT_MODIFIED.getStatusCode());
+                        ctx.response().setStatusMessage(NOT_MODIFIED.getStatusMessage());
                         ctx.response().headers().set(ETAG_HEADER, etag);
-                        ctx.response().headers().add("Content-Length", "0");
+                        ctx.response().headers().add(CONTENT_LENGTH, "0");
                         ctx.response().end();
                         return;
                     }
 
                     if (!resource.exists && resource instanceof DocumentResource) {
-                        ctx.response().setStatusCode(405);
-                        ctx.response().setStatusMessage("Method Not Allowed");
+                        ctx.response().setStatusCode(METHOD_NOT_ALLOWED.getStatusCode());
+                        ctx.response().setStatusMessage(METHOD_NOT_ALLOWED.getStatusMessage());
                         ctx.response().headers().add("Allow", "GET, DELETE");
                         ctx.response().end();
                     }
                     if (resource instanceof CollectionResource) {
-                        ctx.response().setStatusCode(405);
-                        ctx.response().setStatusMessage("Method Not Allowed");
+                        ctx.response().setStatusCode(METHOD_NOT_ALLOWED.getStatusCode());
+                        ctx.response().setStatusMessage(METHOD_NOT_ALLOWED.getStatusMessage());
                         ctx.response().headers().add("Allow", "GET, DELETE");
                         ctx.response().end();
                     }
                     if (resource instanceof DocumentResource) {
                         final DocumentResource documentResource = (DocumentResource) resource;
                         documentResource.errorHandler = error -> {
-                            ctx.response().setStatusCode(400);
-                            ctx.response().setStatusMessage("Bad Request");
+                            ctx.response().setStatusCode(BAD_REQUEST.getStatusCode());
+                            ctx.response().setStatusMessage(BAD_REQUEST.getStatusMessage());
                             ctx.response().end(error);
                         };
                         documentResource.endHandler = event -> ctx.response().end();
@@ -378,9 +394,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             }
             storage.delete(path, resource -> {
                 if (!resource.exists) {
-                    ctx.request().response().setStatusCode(404);
-                    ctx.request().response().setStatusMessage("Not Found");
-                    ctx.request().response().end("404 Not Found");
+                    ctx.request().response().setStatusCode(NOT_FOUND.getStatusCode());
+                    ctx.request().response().setStatusMessage(NOT_FOUND.getStatusMessage());
+                    ctx.request().response().end(NOT_FOUND.toString());
                 } else {
                     ctx.request().response().end();
                 }
@@ -391,9 +407,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             if (log.isTraceEnabled()) {
                 log.trace("RestStorageHandler resource not found: " + ctx.request().uri());
             }
-            ctx.response().setStatusCode(404);
-            ctx.response().setStatusMessage("Not Found");
-            ctx.response().end("404 Not Found");
+            ctx.response().setStatusCode(NOT_FOUND.getStatusCode());
+            ctx.response().setStatusMessage(NOT_FOUND.getStatusMessage());
+            ctx.response().end(NOT_FOUND.toString());
         });
 
         router.routeWithRegex(".*").handler(ctx -> respondWithNotAllowed(ctx.request()));
@@ -426,14 +442,14 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     }
 
     private void respondWithNotAllowed(HttpServerRequest request) {
-        request.response().setStatusCode(405);
-        request.response().setStatusMessage("Method Not Allowed");
-        request.response().end("405 Method Not Allowed");
+        request.response().setStatusCode(METHOD_NOT_ALLOWED.getStatusCode());
+        request.response().setStatusMessage(METHOD_NOT_ALLOWED.getStatusMessage());
+        request.response().end(METHOD_NOT_ALLOWED.toString());
     }
 
     private void respondWithBadRequest(HttpServerRequest request, String responseMessage) {
-        request.response().setStatusCode(400);
-        request.response().setStatusMessage("Bad Request");
+        request.response().setStatusCode(BAD_REQUEST.getStatusCode());
+        request.response().setStatusMessage(BAD_REQUEST.getStatusMessage());
         request.response().end(responseMessage);
     }
 

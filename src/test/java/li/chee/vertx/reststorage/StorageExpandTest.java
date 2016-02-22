@@ -23,13 +23,13 @@ import static org.hamcrest.Matchers.*;
 
 
 @RunWith(VertxUnitRunner.class)
-public class BulkExpandTest extends AbstractTestCase {
+public class StorageExpandTest extends AbstractTestCase {
 
     final String ETAG_HEADER = "Etag";
     final String IF_NONE_MATCH_HEADER = "if-none-match";
-    final String POST_STORAGE_EXP = "/server/resources?bulkExpand=true";
+    final String POST_STORAGE_EXP = "/server/resources?storageExpand=true";
     final int BAD_REQUEST = 400;
-    final String BAD_REQUEST_PARSE_MSG = "Bad Request: Unable to parse body of bulkExpand POST request";
+    final String BAD_REQUEST_PARSE_MSG = "Bad Request: Unable to parse body of storageExpand POST request";
 
     @Before
     public void setPath() {
@@ -84,6 +84,55 @@ public class BulkExpandTest extends AbstractTestCase {
                 .then()
                 .assertThat().statusCode(BAD_REQUEST)
                 .assertThat().body(equalTo(BAD_REQUEST_PARSE_MSG));
+
+        async.complete();
+    }
+
+    @Test
+    public void testWithInvalidResource(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
+
+        // invalid
+        with().body("{ \"foo\"}").put("/server/resources/res2");
+
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(500)
+                .body("", hasKey("error"))
+                .body("error", equalTo("Error decoding invalid json resource 'res2'"));
+
+        async.complete();
+    }
+
+    @Test
+    public void testWithMultipleInvalidResources(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        // invalid
+        with().body("{ \"foo\": \"bar1\"").put("/server/resources/res1");
+
+        // invalid
+        with().body("{ \"foo\"}").put("/server/resources/res2");
+
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(500)
+                .body("", hasKey("error"))
+                .body("error", equalTo("Error decoding invalid json resource 'res1'"));
 
         async.complete();
     }

@@ -16,14 +16,14 @@ The following methods are supported on leaves (documents):
 
 The following methods are supported on intermediate nodes (collections):
 * GET: Returns the list of collection members. Serves JSON and HTML representations.
-* POST (BulkExpand): Returns the expanded content of the sub resources of the (collection) resource. The depth is limited to 1 level. See description below
+* POST (StorageExpand): Returns the expanded content of the sub resources of the (collection) resource. The depth is limited to 1 level. See description below
 * DELETE: Delete the collection and all its members.
 
 Runs either as a module or can be integrated into an existing application by instantiating the RestStorageHandler class directly.
 
-### BulkExpand Feature
+### StorageExpand Feature
 
-The BulkExpand feature expands the hierarchical resources and returns them as a single concatenated json resource.
+The StorageExpand feature expands the hierarchical resources and returns them as a single concatenated json resource.
 
 Having the following resources in the storage
 
@@ -50,7 +50,7 @@ would lead to this result
     
 ##### Usage
 
-To use the BulkExpand feature you have to make a POST request to the desired collection to expand having the url paramter **bulkExpand=true**. Also you wil have
+To use the StorageExpand feature you have to make a POST request to the desired collection to expand having the url paramter **storageExpand=true**. Also you wil have
 to send the names of the subresources in the body of the request. Using the example above, the request would look like this:
 
 **POST /yourStorageURL/collection** with the body:

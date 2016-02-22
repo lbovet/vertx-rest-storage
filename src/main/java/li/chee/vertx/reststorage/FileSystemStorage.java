@@ -182,7 +182,7 @@ public class FileSystemStorage implements Storage {
     }
 
     @Override
-    public void bulkExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
-        throw new UnsupportedOperationException("Method 'bulkExpand' is not yet implemented for the FileSystemStorage");
+    public void storageExpand(String path, String etag, List<String> subResources, Handler<Resource> handler) {
+        throw new UnsupportedOperationException("Method 'storageExpand' is not yet implemented for the FileSystemStorage");
     }
 }
