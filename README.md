@@ -1,7 +1,7 @@
 vertx-rest-storage
 ==================
 
-[ ![Codeship Status for postit12/vertx-rest-storage](https://codeship.com/projects/29282ed0-ef1b-0132-1b5c-3628cb5d23b0/status?branch=master)](https://codeship.com/projects/84306)
+[![Build Status](https://drone.io/github.com/swisspush/vertx-rest-storage/status.png)](https://drone.io/github.com/swisspush/vertx-rest-storage/latest)
 
 Persistence for REST resources in the filesystem or a redis database. 
 
