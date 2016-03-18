@@ -1,5 +1,4 @@
-vertx-rest-storage
-==================
+# vertx-rest-storage
 
 [![Build Status](https://drone.io/github.com/swisspush/vertx-rest-storage/status.png)](https://drone.io/github.com/swisspush/vertx-rest-storage/latest)
 
@@ -21,7 +20,50 @@ The following methods are supported on intermediate nodes (collections):
 
 Runs either as a module or can be integrated into an existing application by instantiating the RestStorageHandler class directly.
 
-### StorageExpand Feature
+## Features
+### GET
+Invoking GET request on a leave (document) returns the content of the resource.
+> GET /storage/resources/resource_1
+
+Invoking GET request on a collection returns a list of collection members.
+> GET /storage/resources/
+
+#### Parameters
+
+| Parameter | Description  |
+|:--------- | :----------- |
+| limit | defines the amount of returned resources |
+| offset | defines the amount of resources to skip. Can be used in combination with limit to provide pageing functionality |
+
+##### Examples
+Given a collection of ten items (res1-res10) under the path /server/tests/offset/resources/
+
+| Request | Returned items  |
+|:--------- | :----------- |
+| **GET** /server/tests/offset/resources/?limit=10 | all |
+| **GET** /server/tests/offset/resources/?limit=99 | all |
+| **GET** /server/tests/offset/resources/?limit=5 | res1,res10,res2,res3,res4 |
+| **GET** /server/tests/offset/resources/?offset=2 | res2,res3,res4,res5,res6,res7,res8,res9 |
+| **GET** /server/tests/offset/resources/?offset=11 | no items (empty array) |
+| **GET** /server/tests/offset/resources/?offset=2&limit=-1 | res2,res3,res4,res5,res6,res7,res8,res9 |
+| **GET** /server/tests/offset/resources/?offset=0&limit=3 | res1,res10,res2 |
+| **GET** /server/tests/offset/resources/?offset=1&limit=10 | res10,res2,res3,res4,res5,res6,res7,res8,res9 |
+
+The returned json response look like this:
+
+```json
+{
+  "resources": [
+    "res1",
+    "res10",
+    "res2",
+    "res3",
+    "res4"
+  ]
+}
+```
+
+### StorageExpand
 
 The StorageExpand feature expands the hierarchical resources and returns them as a single concatenated json resource.
 
@@ -60,8 +102,7 @@ to send the names of the subresources in the body of the request. Using the exam
     }
 
 
-Configuration
--------------
+## Configuration
 
     {
         "port": 8989        // Port we listen to. Defaults to 8989.
@@ -91,13 +132,10 @@ Configuration
 	
 Caution: The redis storage implementation does not currently support streaming. Avoid transfering too big payloads since they will be entirely copied in memory.
 
-Dependencies
-------------
-
+## Dependencies
 This module uses Vert.x v3.2.0 (or later), so **Java 8** is required.
 
-Use gradle with alternative repositories
-----------------------------------------
+## Use gradle with alternative repositories
 As standard the default maven repositories are set.
 You can overwrite these repositories by setting these properties (`-Pproperty=value`):
 
