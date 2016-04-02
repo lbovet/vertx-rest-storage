@@ -22,10 +22,11 @@ apply plugin: 'signing'
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // maven task configuration
 
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
 signing {
-    if (project.hasProperty('signArchives')) {
-	    sign configurations.archives
-     }
+    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+    sign configurations.archives
 }
 
 if (!project.hasProperty('repoUsername')) {
@@ -78,6 +79,10 @@ uploadArchives {
 
             snapshotRepository(url: "$snapshotRepository") {
                 authentication(userName: "$repoUsername", password: "$repoPassword")
+            }
+
+            if (isReleaseVersion) {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
             }
 	
             pom.project {
