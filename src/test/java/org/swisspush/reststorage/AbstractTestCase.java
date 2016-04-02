@@ -60,7 +60,8 @@ public abstract class AbstractTestCase {
         storageConfig.put("storageAddress", "rest-storage");
         storageConfig.put("redisHost", "localhost");
         storageConfig.put("redisPort", 6379);
-        vertx.deployVerticle("RestStorageMod", new DeploymentOptions().setConfig(storageConfig), context.asyncAssertSuccess(stringAsyncResult1 -> {
+        RestStorageMod restStorageMod = new RestStorageMod();
+        vertx.deployVerticle(restStorageMod, new DeploymentOptions().setConfig(storageConfig), context.asyncAssertSuccess(stringAsyncResult1 -> {
             // standard code: will called @Before every test
             RestAssured.basePath = "";
         }));
