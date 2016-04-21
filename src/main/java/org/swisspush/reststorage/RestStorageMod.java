@@ -4,9 +4,9 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import org.swisspush.reststorage.util.ModuleConfiguration;
 
 public class RestStorageMod extends AbstractVerticle {
 
@@ -14,33 +14,24 @@ public class RestStorageMod extends AbstractVerticle {
 
     @Override
     public void start(Future<Void> fut) {
-
-        JsonObject config = config();
-
-        String storageName = config.getString("storage", "filesystem");
-        int port = config.getInteger("port", 8989);
-        String prefix = config.getString("prefix", "");
-        String storageAddress = config.getString("storageAddress", "resource-storage");
-        JsonObject editorConfig = config.getJsonObject("editors");
-        prefix = prefix.equals("/") ? "" : prefix;
-
+        ModuleConfiguration modConfig = ModuleConfiguration.fromJsonObject(config());
+        log.info("Starting RestStorageMod with configuration: " + modConfig);
         Storage storage;
-        switch (storageName) {
-        case "filesystem":
-            String root = config.getString("root", ".");
-            storage = new FileSystemStorage(vertx, root);
-            break;
-        case "redis":
-            storage = new RedisStorage(vertx, log, config);
-            break;
-        default:
-            throw new RuntimeException("Storage not supported: " + storageName);
+        switch (modConfig.getStorageType()) {
+            case filesystem:
+                storage = new FileSystemStorage(vertx, modConfig.getRoot());
+                break;
+            case redis:
+                storage = new RedisStorage(vertx, modConfig);
+                break;
+            default:
+                throw new RuntimeException("Storage not supported: " + modConfig.getStorageType());
         }
 
-        Handler<HttpServerRequest> handler = new RestStorageHandler(vertx, log, storage, prefix, editorConfig);
-        vertx.createHttpServer().requestHandler(handler).listen(port, result -> {
+        Handler<HttpServerRequest> handler = new RestStorageHandler(vertx, log, storage, modConfig.getPrefix(), modConfig.getEditorConfig());
+        vertx.createHttpServer().requestHandler(handler).listen(modConfig.getPort(), result -> {
             if(result.succeeded()){
-                new EventBusAdapter().init(vertx, storageAddress, handler);
+                new EventBusAdapter().init(vertx, modConfig.getStorageAddress(), handler);
                 fut.complete();
             } else {
                 fut.fail(result.cause());

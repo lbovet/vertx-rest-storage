@@ -76,19 +76,21 @@ key: data:test:collection:resource3     value: {"myProp3": "myVal3"}
 ```
 would lead to this result
 
-    {
-        "collection" : {
-            "resource1" : {
-                "myProp1": "myVal1"
-            },
-            "resource2" : {
-                "myProp2": "myVal2"
-            },
-            "resource3" : {
-                "myProp3": "myVal3"
-            }                        
+```json
+{
+    "collection" : {
+        "resource1" : {
+            "myProp1": "myVal1"
+        },
+        "resource2" : {
+            "myProp2": "myVal2"
+        },
+        "resource3" : {
+            "myProp3": "myVal3"
         }
     }
+}
+```
     
 ##### Usage
 
@@ -96,40 +98,64 @@ To use the StorageExpand feature you have to make a POST request to the desired 
 to send the names of the subresources in the body of the request. Using the example above, the request would look like this:
 
 **POST /yourStorageURL/collection** with the body:
-    
-    {
-        "subResources" : ["resource1", "resource2", "resource3"]
-    }
-
+```json
+{
+    "subResources" : ["resource1", "resource2", "resource3"]
+}
+```
 
 ## Configuration
 
-    {
-        "port": 8989        // Port we listen to. Defaults to 8989.
-        "storage": ...,     // The type of storage (see below). Defaults to "filesystem".		                         
-        "prefix": "/test",  // The part of the URL path before this handler (aka "context path" in JEE terminology). 
-                            // Defaults to "/".
-    }
+The following configuration values are available:
 
+| Property | Type | Default value | Description | 
+|:--------- | :----------- | :----------- | :----------- |
+| root | common | . | The prefix for the directory or redis key |
+| storageType | common | filesystem | The storage implementation to use. Choose between filesystem or redis |
+| port | common | 8989 | The port the mod listens to. |
+| prefix | common | / | The part of the URL path before this handler (aka "context path" in JEE terminology) |
+| storageAddress | common | resource-storage | The eventbus address the mod listens to. |
+| editorConfig | common |  | Additional configuration values for the editor |
+| redisHost | redis | localhost | The host where redis is running on |
+| redisPort | redis | 6379 | The port where redis is running on |
+| expirablePrefix | redis | rest-storage:expirable | The prefix for expirable data redis keys |
+| resourcesPrefix | redis | rest-storage:resources | The prefix for resources redis keys |
+| collectionsPrefix | redis | rest-storage:collections | The prefix for collections redis keys |
+| deltaResourcesPrefix | redis | delta:resources | The prefix for delta resources redis keys |
+| deltaEtagsPrefix | redis | delta:etags | The prefix for delta etags redis keys |
+| resourceCleanupAmount | redis | 100000 | The maximum amount of resources to clean in a single cleanup run |
+
+### Configuration util
+
+The configurations have to be passed as JsonObject to the module. For a simplyfied configuration the _ModuleConfigurationBuilder_ can be used.
+
+Example:
+
+```java
+ModuleConfiguration config = with()
+		.redisHost("anotherhost")
+		.redisPort(1234)
+		.editorConfig(new JsonObject().put("myKey", "myValue"))
+		.build();
+
+JsonObject json = config.asJsonObject();
+```
+
+Properties not overriden will not be changed. Thus remaining default.
+
+To use default values only, the _ModuleConfiguration_ constructor without parameters can be used:
+
+```java
+JsonObject json  = new ModuleConfiguration().asJsonObject();
+```
+
+## Storage types
+Currently there are two storage types supported. File system storage and redis storage.
 ### File System Storage
-
-    {
-        "storage": "filesystem",                         
-        "root": "/test",    // The directory where the storage has its root (aka "document root" in Apache terminology).
-                            // Defaults to "."
-    }
+The data is stored hierarchically on the file system. This is the default storage type when not overriden in the configuration.
 
 ### Redis Storage
-
-	{
-		"storage": "redis",
-		"redisHost": "localHost",  // The host where redis is running, defaults to "localHost"
-		"redisPort": 6379,         // The port where redis is runnig, defaults to 6379                  
-		"root": "test",            // The prefix for the redis keys containing the data. 
-		                           // Defaults to "rest-storage". 
-		                        
-	}
-	
+The data is stored in a redis database.
 Caution: The redis storage implementation does not currently support streaming. Avoid transfering too big payloads since they will be entirely copied in memory.
 
 ## Dependencies
@@ -146,4 +172,3 @@ You can overwrite these repositories by setting these properties (`-Pproperty=va
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lbovet/vertx-rest-storage/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-

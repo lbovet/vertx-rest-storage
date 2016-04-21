@@ -42,6 +42,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         this.router = Router.router(vertx);
         this.log = log;
 
+        String prefixFixed = prefix.equals("/") ? "" : prefix;
+
         if (editorConfig != null) {
             for (Entry<String, Object> entry : editorConfig.getMap().entrySet()) {
                 editors.put(entry.getKey(), entry.getValue().toString());
@@ -68,7 +70,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             }, ctx.request().params().get("cleanupResourcesAmount"));
         });
 
-        router.postWithRegex(prefix + ".*").handler(ctx -> {
+        router.postWithRegex(prefixFixed + ".*").handler(ctx -> {
             if (!ctx.request().params().contains(STORAGE_EXPAND_PARAMETER)) {
                 respondWithNotAllowed(ctx.request());
             } else {
@@ -92,7 +94,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             return;
                         }
 
-                        final String path = cleanPath(ctx.request().path().substring(prefix.length()));
+                        final String path = cleanPath(ctx.request().path().substring(prefixFixed.length()));
                         final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
                         storage.storageExpand(path, etag, subResourceNames, resource -> {
 
@@ -152,8 +154,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         });
 
-        router.getWithRegex(prefix + ".*").handler(ctx -> {
-            final String path = cleanPath(ctx.request().path().substring(prefix.length()));
+        router.getWithRegex(prefixFixed + ".*").handler(ctx -> {
+            final String path = cleanPath(ctx.request().path().substring(prefixFixed.length()));
             final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
             if (log.isTraceEnabled()) {
                 log.trace("RestStorageHandler got GET Request path: " + path + " etag: " + etag);
@@ -319,9 +321,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             });
         });
 
-        router.putWithRegex(prefix + ".*").handler(ctx -> {
+        router.putWithRegex(prefixFixed + ".*").handler(ctx -> {
             ctx.request().pause();
-            final String path = cleanPath(ctx.request().path().substring(prefix.length()));
+            final String path = cleanPath(ctx.request().path().substring(prefixFixed.length()));
             long expire = -1;
             if (ctx.request().headers().contains(EXPIRE_AFTER_HEADER)) {
                 try {
@@ -386,8 +388,8 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         });
 
-        router.deleteWithRegex(prefix + ".*").handler(ctx -> {
-            final String path = cleanPath(ctx.request().path().substring(prefix.length()));
+        router.deleteWithRegex(prefixFixed + ".*").handler(ctx -> {
+            final String path = cleanPath(ctx.request().path().substring(prefixFixed.length()));
             if (log.isTraceEnabled()) {
                 log.trace("RestStorageHandler delete resource: " + ctx.request().uri());
             }

@@ -13,7 +13,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
-import io.vertx.core.json.JsonObject;
+import org.swisspush.reststorage.util.ModuleConfiguration;
 import redis.clients.jedis.Jedis;
 
 @RunWith(VertxUnitRunner.class)
@@ -55,13 +55,13 @@ public abstract class AbstractTestCase {
         RestAssured.registerParser("application/json; charset=utf-8", Parser.JSON);
         RestAssured.defaultParser = Parser.JSON;
 
-        JsonObject storageConfig = new JsonObject();
-        storageConfig.put("storage", "redis");
-        storageConfig.put("storageAddress", "rest-storage");
-        storageConfig.put("redisHost", "localhost");
-        storageConfig.put("redisPort", 6379);
+        ModuleConfiguration modConfig = ModuleConfiguration.with()
+                .storageType(ModuleConfiguration.StorageType.redis)
+                .storageAddress("rest-storage")
+                .build();
+
         RestStorageMod restStorageMod = new RestStorageMod();
-        vertx.deployVerticle(restStorageMod, new DeploymentOptions().setConfig(storageConfig), context.asyncAssertSuccess(stringAsyncResult1 -> {
+        vertx.deployVerticle(restStorageMod, new DeploymentOptions().setConfig(modConfig.asJsonObject()), context.asyncAssertSuccess(stringAsyncResult1 -> {
             // standard code: will called @Before every test
             RestAssured.basePath = "";
         }));
