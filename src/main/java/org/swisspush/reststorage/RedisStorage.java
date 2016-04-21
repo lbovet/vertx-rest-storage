@@ -7,6 +7,7 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.redis.RedisClient;
@@ -14,11 +15,14 @@ import io.vertx.redis.RedisOptions;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
+import org.swisspush.reststorage.util.ModuleConfiguration;
 
 import java.io.*;
 import java.util.*;
 
 public class RedisStorage implements Storage {
+
+    private Logger log = LoggerFactory.getLogger(RedisStorage.class);
 
     // set to very high value = Sat Nov 20 2286 17:46:39
     private static final String MAX_EXPIRE_IN_MILLIS = "9999999999999";
@@ -33,23 +37,19 @@ public class RedisStorage implements Storage {
     private String expirableSet;
     private long cleanupResourcesAmount;
     private Vertx vertx;
-    private Logger log;
     private RedisClient redisClient;
     private Map<LuaScript,LuaScriptState> luaScripts = new HashMap<>();
 
-    public RedisStorage(Vertx vertx, Logger log, JsonObject config) {
-        String redisHost = config.getString("redisHost", "localhost");
-        int redisPort = config.getInteger("redisPort", 6379);
-        this.expirableSet = config.getString("expirablePrefix", "rest-storage:expirable");
-        this.redisResourcesPrefix = config.getString("resourcesPrefix", "rest-storage:resources");
-        this.redisCollectionsPrefix = config.getString("collectionsPrefix", "rest-storage:collections");
-        this.redisDeltaResourcesPrefix = config.getString("deltaResourcesPrefix", "delta:resources");
-        this.redisDeltaEtagsPrefix = config.getString("deltaEtagsPrefix", "delta:etags");
-        this.cleanupResourcesAmount = config.getLong("resourceCleanupAmount", 100000L);
+    public RedisStorage(Vertx vertx, ModuleConfiguration config) {
+        this.expirableSet = config.getExpirablePrefix();
+        this.redisResourcesPrefix = config.getResourcesPrefix();
+        this.redisCollectionsPrefix = config.getCollectionsPrefix();
+        this.redisDeltaResourcesPrefix = config.getDeltaResourcesPrefix();
+        this.redisDeltaEtagsPrefix = config.getDeltaEtagsPrefix();
+        this.cleanupResourcesAmount = config.getResourceCleanupAmount();
 
         this.vertx = vertx;
-        this.log = log;
-        this.redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
+        this.redisClient = RedisClient.create(vertx, new RedisOptions().setHost(config.getRedisHost()).setPort(config.getRedisPort()));
 
         // load all the lua scripts
         LuaScriptState luaGetScriptState = new LuaScriptState(LuaScript.GET, false);
@@ -171,6 +171,10 @@ public class RedisStorage implements Storage {
 
             // check first if the lua script already exists in the store
             redisClient.scriptExists(this.sha, resultArray -> {
+                if(resultArray.failed()){
+                    log.error("Error checking whether lua script exists", resultArray.cause());
+                    return;
+                }
                 Long exists = resultArray.result().getLong(0);
                 // if script already
                 if(Long.valueOf(1).equals(exists)) {
@@ -384,6 +388,8 @@ public class RedisStorage implements Storage {
                         } else {
                             luaScripts.get(LuaScript.GET).loadLuaScript(new Get(keys, arguments, handler), executionCounter);
                         }
+                    } else {
+                        log.error("GET request failed with message: " + message);
                     }
                 }
             });
@@ -481,6 +487,8 @@ public class RedisStorage implements Storage {
                         } else {
                             luaScripts.get(LuaScript.STORAGE_EXPAND).loadLuaScript(new StorageExpand(keys, arguments, handler, etag), executionCounter);
                         }
+                    } else {
+                        log.error("StorageExpand request failed with message: " + message);
                     }
                 }
             });
@@ -676,6 +684,7 @@ public class RedisStorage implements Storage {
                             luaScripts.get(LuaScript.PUT).loadLuaScript(new Put(d, keys, arguments, handler), executionCounter);
                         }
                     } else if (message != null && d.errorHandler != null){
+                        log.error("PUT request failed with message: " + message);
                         d.errorHandler.handle(message);
                     }
                 }
