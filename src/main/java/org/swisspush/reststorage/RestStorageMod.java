@@ -3,6 +3,7 @@ package org.swisspush.reststorage;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -29,7 +30,11 @@ public class RestStorageMod extends AbstractVerticle {
         }
 
         Handler<HttpServerRequest> handler = new RestStorageHandler(vertx, log, storage, modConfig.getPrefix(), modConfig.getEditorConfig());
-        vertx.createHttpServer().requestHandler(handler).listen(modConfig.getPort(), result -> {
+
+        // in Vert.x 2x 100-continues was activated per default, in vert.x 3x it is off per default.
+        HttpServerOptions options = new HttpServerOptions().setHandle100ContinueAutomatically(true);
+
+        vertx.createHttpServer(options).requestHandler(handler).listen(modConfig.getPort(), result -> {
             if(result.succeeded()){
                 new EventBusAdapter().init(vertx, modConfig.getStorageAddress(), handler);
                 fut.complete();
