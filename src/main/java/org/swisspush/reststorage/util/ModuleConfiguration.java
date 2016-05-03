@@ -263,7 +263,7 @@ public class ModuleConfiguration {
             this.deltaResourcesPrefix = "delta:resources";
             this.deltaEtagsPrefix = "delta:etags";
             this.resourceCleanupAmount = 100000L;
-            this.lockPrefix = "rest-storage:lock";
+            this.lockPrefix = "rest-storage:locks";
         }
 
         public ModuleConfigurationBuilder root(String root){

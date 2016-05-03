@@ -33,7 +33,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "delta:resources");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "delta:etags");
         testContext.assertEquals(config.getResourceCleanupAmount(), 100000L);
-        testContext.assertEquals(config.getLockPrefix(), "rest-storage:lock");
+        testContext.assertEquals(config.getLockPrefix(), "rest-storage:locks");
     }
 
     @Test
@@ -56,7 +56,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "delta:resources");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "delta:etags");
         testContext.assertEquals(config.getResourceCleanupAmount(), 100000L);
-        testContext.assertEquals(config.getLockPrefix(), "rest-storage:lock");
+        testContext.assertEquals(config.getLockPrefix(), "rest-storage:locks");
 
 
             // overriden values
@@ -86,7 +86,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(json.getString(PROP_DELTA_RES_PREFIX), "delta:resources");
         testContext.assertEquals(json.getString(PROP_DELTA_ETAGS_PREFIX), "delta:etags");
         testContext.assertEquals(json.getLong(PROP_RES_CLEANUP_AMMOUNT), 100000L);
-        testContext.assertEquals(json.getString(PROP_LOCK_PREFIX), "rest-storage:lock");
+        testContext.assertEquals(json.getString(PROP_LOCK_PREFIX), "rest-storage:locks");
     }
 
     @Test
@@ -112,7 +112,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(json.getString(PROP_DELTA_RES_PREFIX), "delta:resources");
         testContext.assertEquals(json.getString(PROP_DELTA_ETAGS_PREFIX), "delta:etags");
         testContext.assertEquals(json.getLong(PROP_RES_CLEANUP_AMMOUNT), 100000L);
-        testContext.assertEquals(json.getString(PROP_LOCK_PREFIX), "rest-storage:lock");
+        testContext.assertEquals(json.getString(PROP_LOCK_PREFIX), "rest-storage:locks");
 
 
         // overriden values
@@ -143,7 +143,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "delta:resources");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "delta:etags");
         testContext.assertEquals(config.getResourceCleanupAmount(), 100000L);
-        testContext.assertEquals(config.getLockPrefix(), "rest-storage:lock");
+        testContext.assertEquals(config.getLockPrefix(), "rest-storage:locks");
 
     }
 

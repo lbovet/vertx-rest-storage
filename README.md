@@ -135,7 +135,7 @@ The following configuration values are available:
 | collectionsPrefix | redis | rest-storage:collections | The prefix for collections redis keys |
 | deltaResourcesPrefix | redis | delta:resources | The prefix for delta resources redis keys |
 | deltaEtagsPrefix | redis | delta:etags | The prefix for delta etags redis keys |
-| lockPrefix | redis | rest-storage:lock | The prefix for lock redis keys |
+| lockPrefix | redis | rest-storage:locks | The prefix for lock redis keys |
 | resourceCleanupAmount | redis | 100000 | The maximum amount of resources to clean in a single cleanup run |
 
 ### Configuration util
