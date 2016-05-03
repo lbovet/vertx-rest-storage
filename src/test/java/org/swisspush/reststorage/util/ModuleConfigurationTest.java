@@ -17,7 +17,7 @@ import static org.swisspush.reststorage.util.ModuleConfiguration.*;
 public class ModuleConfigurationTest {
 
     @Test
-    public void testDefaultConfiguration(TestContext testContext){
+    public void testDefaultConfiguration(TestContext testContext) {
         ModuleConfiguration config = new ModuleConfiguration();
         testContext.assertEquals(config.getRoot(), ".");
         testContext.assertEquals(config.getStorageType(), StorageType.filesystem);
@@ -33,6 +33,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "delta:resources");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "delta:etags");
         testContext.assertEquals(config.getResourceCleanupAmount(), 100000L);
+        testContext.assertEquals(config.getLockPrefix(), "rest-storage:lock");
     }
 
     @Test
@@ -55,8 +56,10 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "delta:resources");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "delta:etags");
         testContext.assertEquals(config.getResourceCleanupAmount(), 100000L);
+        testContext.assertEquals(config.getLockPrefix(), "rest-storage:lock");
 
-        // overriden values
+
+            // overriden values
         testContext.assertEquals(config.getRedisHost(), "anotherhost");
         testContext.assertEquals(config.getRedisPort(), 1234);
         testContext.assertNotNull(config.getEditorConfig());
@@ -83,6 +86,7 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(json.getString(PROP_DELTA_RES_PREFIX), "delta:resources");
         testContext.assertEquals(json.getString(PROP_DELTA_ETAGS_PREFIX), "delta:etags");
         testContext.assertEquals(json.getLong(PROP_RES_CLEANUP_AMMOUNT), 100000L);
+        testContext.assertEquals(json.getString(PROP_LOCK_PREFIX), "rest-storage:lock");
     }
 
     @Test
@@ -108,6 +112,8 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(json.getString(PROP_DELTA_RES_PREFIX), "delta:resources");
         testContext.assertEquals(json.getString(PROP_DELTA_ETAGS_PREFIX), "delta:etags");
         testContext.assertEquals(json.getLong(PROP_RES_CLEANUP_AMMOUNT), 100000L);
+        testContext.assertEquals(json.getString(PROP_LOCK_PREFIX), "rest-storage:lock");
+
 
         // overriden values
         testContext.assertEquals(json.getString(PROP_REDIS_HOST), "anotherhost");
@@ -137,6 +143,8 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "delta:resources");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "delta:etags");
         testContext.assertEquals(config.getResourceCleanupAmount(), 100000L);
+        testContext.assertEquals(config.getLockPrefix(), "rest-storage:lock");
+
     }
 
     @Test
@@ -157,6 +165,7 @@ public class ModuleConfigurationTest {
         json.put(PROP_DELTA_RES_PREFIX, "newDeltaResourcesPrefix");
         json.put(PROP_DELTA_ETAGS_PREFIX, "newDeltaEtagsPrefix");
         json.put(PROP_RES_CLEANUP_AMMOUNT, 999L);
+        json.put(PROP_LOCK_PREFIX, "newLockPrefix");
 
         ModuleConfiguration config = fromJsonObject(json);
         testContext.assertEquals(config.getRoot(), "newroot");
@@ -177,5 +186,6 @@ public class ModuleConfigurationTest {
         testContext.assertEquals(config.getDeltaResourcesPrefix(), "newDeltaResourcesPrefix");
         testContext.assertEquals(config.getDeltaEtagsPrefix(), "newDeltaEtagsPrefix");
         testContext.assertEquals(config.getResourceCleanupAmount(), 999L);
+        testContext.assertEquals(config.getLockPrefix(), "newLockPrefix");
     }
 }

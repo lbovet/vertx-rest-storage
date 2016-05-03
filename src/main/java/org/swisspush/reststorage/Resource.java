@@ -7,6 +7,7 @@ public class Resource implements Comparable<Resource>{
     public boolean exists = true;
     public boolean modified = true;
     public boolean invalid = false;
+    public boolean rejected = false;
     public String invalidMessage;
 
     public Handler<String> errorHandler;

@@ -1,10 +1,14 @@
 package org.swisspush.reststorage.lua;
 
 import org.junit.Test;
+import org.swisspush.reststorage.util.LockMode;
 
 import java.util.ArrayList;
 
+import static com.jayway.awaitility.Awaitility.await;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
@@ -203,6 +207,165 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists("rest-storage:resources:project:server:test:test11:test22"), equalTo(false));
     }
 
+    @Test
+    public void deleteSilentLockedResourceWithoutOwnership() throws InterruptedException {
+        // ARRANGE
+        String path = ":project:lock:delete:";
+        String content = "{\"content\":\"locked\"}";
+
+        // ACT - 1 (without any owner)
+        evalScriptPut(path, content, MAX_EXPIRE, "etag", "test", LockMode.SILENT, 10);
+        String value = evalScriptDel(path, "", LockMode.SILENT, 10);
+
+        // ASSERT - 1
+        assertThat(value, equalTo("silent"));
+        assertThat(jedis.exists(prefixLock + path), equalTo(true));
+
+        // ACT - 2 (with different owner)
+        value = evalScriptDel(path, "test2", LockMode.SILENT, 10);
+
+        // ASSERT - 2
+        assertThat(value, equalTo("silent"));
+        assertThat(jedis.exists(prefixLock + path), equalTo(true));
+    }
+
+    @Test
+    public void deleteSilentLockedResourceWithOwnership() throws InterruptedException {
+        // ARRANGE
+        String path = ":project:lock:delete:";
+        String content = "{\"content\":\"locked\"}";
+
+        // ACT
+        evalScriptPut(path, content, MAX_EXPIRE, "etag", "test", LockMode.SILENT, 10);
+        assertThat(jedis.exists("rest-storage:resources" + path), equalTo(true));
+        String value = evalScriptDel(path, "test", LockMode.SILENT, 10);
+
+        // ASSERT
+        assertThat(value, equalTo("deleted"));
+        assertThat(jedis.exists(prefixLock + path), equalTo(true));
+        assertThat(jedis.exists("rest-storage:resources" + path), equalTo(false));
+    }
+
+    @Test
+    public void deleteRejectLockedResourceWithoutOwnership() {
+        // ARRANGE
+        String path = ":project:lock:delete:";
+        String content = "{\"content\":\"locked\"}";
+
+        // ACT - 1 (without any owner)
+        evalScriptPut(path, content, MAX_EXPIRE, "etag", "test", LockMode.REJECT, 10);
+        String value = evalScriptDel(path, "", LockMode.REJECT, 10);
+
+        // ASSERT - 1
+        assertThat(value, equalTo("reject"));
+        assertThat(jedis.exists(prefixLock + path), equalTo(true));
+
+        // ACT - 2 (with different owner)
+        value = evalScriptDel(path, "test2", LockMode.REJECT, 10);
+
+        // ASSERT - 2
+        assertThat(value, equalTo("reject"));
+        assertThat(jedis.exists(prefixLock + path), equalTo(true));
+    }
+
+    @Test
+    public void deleteRejectLockedResourceWithOwnership() throws InterruptedException {
+        // ARRANGE
+        String path = ":project:lock:delete:";
+        String content = "{\"content\":\"locked\"}";
+
+        // ACT
+        evalScriptPut(path, content, MAX_EXPIRE, "etag", "test", LockMode.REJECT, 10);
+        assertThat(jedis.exists("rest-storage:resources" + path), equalTo(true));
+        String value = evalScriptDel(path, "test", LockMode.REJECT, 10);
+
+        // ASSERT
+        assertThat(value, equalTo("deleted"));
+        assertThat(jedis.exists(prefixLock + path), equalTo(true));
+        assertThat(jedis.exists("rest-storage:resources" + path), equalTo(false));
+    }
+
+    @Test
+    public void deleteCollectionWithLockedRessource() {
+        // ARRANGE
+        String base = ":project:lock:delete:collection";
+        String path1 = base + ":res1";
+        String path2 = base + ":res2";
+        String path3 = base + ":res3";
+
+        String content1 = "{\"content\":\"1\"}";
+        String content2 = "{\"content\":\"locked\"}";
+        String content3 = "{\"content\":\"3\"}";
+
+        // ACT
+        evalScriptPut(path1, content1, MAX_EXPIRE);
+        evalScriptPut(path2, content2, MAX_EXPIRE, "etag", "test", LockMode.REJECT, 10);
+        evalScriptPut(path3, content3, MAX_EXPIRE);
+
+        assertThat(jedis.exists("rest-storage:resources" + path1), equalTo(true));
+        assertThat(jedis.exists("rest-storage:resources" + path2), equalTo(true));
+        assertThat(jedis.exists("rest-storage:resources" + path3), equalTo(true));
+
+        String value = (String) evalScriptDel(base);
+
+        // ASSERT
+        assertThat(value, equalTo("deleted"));
+        assertThat(jedis.exists(prefixLock + path2), equalTo(false));
+        assertThat(jedis.exists("rest-storage:resources" + path1), equalTo(false));
+        assertThat(jedis.exists("rest-storage:resources" + path2), equalTo(false));
+        assertThat(jedis.exists("rest-storage:resources" + path3), equalTo(false));
+    }
+
+    @Test
+    public void tryToDeleteWhileAndAfterResourceLock() {
+        // ARRANGE
+        long lockExpire = 5;
+        String path = ":project:lock:delete:";
+        String content = "{\"content\":\"locked\"}";
+
+        // ACT
+        jedis.expire(prefixLock +  path, 0);
+        String lockedValue = evalScriptPut(path, content, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner1", LockMode.SILENT, lockExpire);
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(jedis.hget("rest-storage:resources" + path, RESOURCE), equalTo(content));
+
+        // ASSERT
+        await().atMost(lockExpire * 2, SECONDS).until(() ->
+                evalScriptDel(path, "", LockMode.SILENT, 10),
+                equalTo("deleted")
+        );
+
+        assertThat(jedis.exists(prefixLock + path), equalTo(false));
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
+    private String evalScriptDel(final String resourceName, final String lockOwner, LockMode lockMode, long lockExpire) {
+        String delScript = readScript("del.lua");
+        String lockExpireInMillis = String.valueOf(System.currentTimeMillis() + (lockExpire * 1000));
+        return (String) jedis.eval(delScript, new ArrayList() {
+            {
+                add(resourceName);
+            }
+        },
+                new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(prefixDeltaResources);
+                        add(prefixDeltaEtags);
+                        add(expirableSet);
+                        add("0");
+                        add("9999999999999");
+                        add(prefixLock);
+                        add(lockOwner);
+                        add(lockMode.text());
+                        add(lockExpireInMillis);
+                    }
+                }
+        );
+    }
+
+
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
     private Object evalScriptDel(final String resourceName) {
         String putScript = readScript("del.lua");
@@ -210,18 +373,20 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
             {
                 add(resourceName);
             }
-        }, new ArrayList() {
-            {
-                add(prefixResources);
-                add(prefixCollections);
-                add(prefixDeltaResources);
-                add(prefixDeltaEtags);
-                add(expirableSet);
-                add("0");
-                add("9999999999999");
-            }
-        }
-                );
+        },
+                new ArrayList() {
+                    {
+                        add(prefixResources);
+                        add(prefixCollections);
+                        add(prefixDeltaResources);
+                        add(prefixDeltaEtags);
+                        add(expirableSet);
+                        add("0");
+                        add("9999999999999");
+                        add(prefixLock);
+                    }
+                }
+        );
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked", "serial" })
@@ -240,8 +405,9 @@ public class RedisDelLuaScriptTests extends AbstractLuaScriptTest {
                 add(expirableSet);
                 add(getNowAsString());
                 add(String.valueOf(MAX_EXPIRE_IN_MILLIS));
+                add(prefixLock);
             }
         }
-                );
+        );
     }
 }

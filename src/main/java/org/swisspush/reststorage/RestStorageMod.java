@@ -29,7 +29,7 @@ public class RestStorageMod extends AbstractVerticle {
                 throw new RuntimeException("Storage not supported: " + modConfig.getStorageType());
         }
 
-        Handler<HttpServerRequest> handler = new RestStorageHandler(vertx, log, storage, modConfig.getPrefix(), modConfig.getEditorConfig());
+        Handler<HttpServerRequest> handler = new RestStorageHandler(vertx, log, storage, modConfig.getPrefix(), modConfig.getEditorConfig(), modConfig.getLockPrefix());
 
         // in Vert.x 2x 100-continues was activated per default, in vert.x 3x it is off per default.
         HttpServerOptions options = new HttpServerOptions().setHandle100ContinueAutomatically(true);

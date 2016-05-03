@@ -2,11 +2,14 @@ package org.swisspush.reststorage.lua;
 
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
+import org.swisspush.reststorage.util.LockMode;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static com.jayway.awaitility.Awaitility.await;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
@@ -14,6 +17,8 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
 
     private final static String RESOURCE = "resource";
     private final static String ETAG = "etag";
+    private final static String OWNER = "owner";
+    private final static String MODE = "mode";
 
     @Test
     public void putResourcePathDepthIs3() {
@@ -283,8 +288,197 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
                         add("9999999999999");
                         add(resourceValue1);
                         add(UUID.randomUUID().toString());
+                        add(prefixLock);
                     }
                 }
         );
+    }
+
+    @Test
+    public void putResourceWithSilentLockDifferentEtag() {
+        // ARRANGE
+        String basePath = ":project:server:silent:";
+        String lockedPath =  basePath + "myResource";
+        String anotherPath = basePath + "anotherPath";
+
+        String lockedResource = "{\"content\" : \"locked\" }";
+        String normalResource = "{\"content\" : \"normal\" }";
+        String tryToLockResourceOwner2 = "{\"content\" : \"owner2\" }";
+        String anotherResource = "{\"content\" : \"anotherResource\" }";
+
+        // ACT
+        String lockedValue = evalScriptPut(lockedPath, lockedResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag1", "owner1", LockMode.SILENT, 300);
+        String normalValue = evalScriptPut(lockedPath, normalResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag2");
+        String tryToLockValue = evalScriptPut(lockedPath, tryToLockResourceOwner2, AbstractLuaScriptTest.MAX_EXPIRE, "etag3", "owner2", LockMode.SILENT, 300);
+        String anotherValue = evalScriptPut(anotherPath, anotherResource, AbstractLuaScriptTest.MAX_EXPIRE);
+
+        // ASSERT
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(normalValue, is(equalTo(LockMode.SILENT.text())));
+        assertThat(tryToLockValue, is(equalTo(LockMode.SILENT.text())));
+        assertThat(anotherValue, is(equalTo("OK")));
+
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(lockedResource));
+        assertThat(jedis.hget("rest-storage:resources" + anotherPath, RESOURCE), equalTo(anotherResource));
+
+        assertThat(jedis.hget(prefixLock + lockedPath, OWNER), equalTo("owner1"));
+        assertThat(jedis.hget(prefixLock + lockedPath, MODE), equalTo(LockMode.SILENT.text()));
+    }
+
+    @Test
+    public void putResourceWithSilentLockSameEtag() {
+        // ARRANGE
+        String basePath = ":project:server:silent:";
+        String lockedPath =  basePath + "myResource";
+        String anotherPath = basePath + "anotherPath";
+
+        String lockedResource = "{\"content\" : \"locked\" }";
+        String normalResource = "{\"content\" : \"normal\" }";
+        String tryToLockResourceOwner2 = "{\"content\" : \"owner2\" }";
+        String anotherResource = "{\"content\" : \"anotherResource\" }";
+
+        // ACT
+        String lockedValue = evalScriptPut(lockedPath, lockedResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner1", LockMode.SILENT, 300);
+        String normalValue = evalScriptPut(lockedPath, normalResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag");
+        String tryToLockValue = evalScriptPut(lockedPath, tryToLockResourceOwner2, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner2", LockMode.SILENT, 300);
+        String anotherValue = evalScriptPut(anotherPath, anotherResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag");
+
+        // ASSERT
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(normalValue, is(equalTo(LockMode.SILENT.text())));
+        assertThat(tryToLockValue, is(equalTo(LockMode.SILENT.text())));
+        assertThat(anotherValue, is(equalTo("OK")));
+
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(lockedResource));
+        assertThat(jedis.hget("rest-storage:resources" + anotherPath, RESOURCE), equalTo(anotherResource));
+
+        assertThat(jedis.hget(prefixLock + lockedPath, OWNER), equalTo("owner1"));
+        assertThat(jedis.hget(prefixLock + lockedPath, MODE), equalTo(LockMode.SILENT.text()));
+    }
+
+    @Test
+    public void putResourceWithRejectLockDifferentEtag() {
+        // ARRANGE
+        String basePath = ":project:server:reject:";
+        String lockedPath =  basePath + "myResource";
+        String anotherPath = basePath + "anotherPath";
+
+        String lockedResource = "{\"content\" : \"locked\" }";
+        String normalResource = "{\"content\" : \"normal\" }";
+        String tryToLockResourceOwner2 = "{\"content\" : \"owner2\" }";
+        String anotherResource = "{\"content\" : \"anotherResource\" }";
+
+        // ACT
+        String lockedValue = evalScriptPut(lockedPath, lockedResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag1", "owner1", LockMode.REJECT, 300);
+        String normalValue = evalScriptPut(lockedPath, normalResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag2");
+        String tryToLockValue = evalScriptPut(lockedPath, tryToLockResourceOwner2, AbstractLuaScriptTest.MAX_EXPIRE, "etag3", "owner2", LockMode.REJECT, 300);
+        String anotherValue = evalScriptPut(anotherPath, anotherResource, AbstractLuaScriptTest.MAX_EXPIRE);
+
+        // ASSERT
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(normalValue, is(equalTo(LockMode.REJECT.text())));
+        assertThat(tryToLockValue, is(equalTo(LockMode.REJECT.text())));
+        assertThat(anotherValue, is(equalTo("OK")));
+
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(lockedResource));
+        assertThat(jedis.hget("rest-storage:resources" + anotherPath, RESOURCE), equalTo(anotherResource));
+
+        assertThat(jedis.hget(prefixLock + lockedPath, OWNER), equalTo("owner1"));
+        assertThat(jedis.hget(prefixLock + lockedPath, MODE), equalTo(LockMode.REJECT.text()));
+    }
+
+    @Test
+    public void putResourceWithRejectLockSameEtag() {
+        // ARRANGE
+        String basePath = ":project:server:reject:";
+        String lockedPath =  basePath + "myResource";
+        String anotherPath = basePath + "anotherPath";
+
+        String lockedResource = "{\"content\" : \"locked\" }";
+        String normalResource = "{\"content\" : \"normal\" }";
+        String tryToLockResourceOwner2 = "{\"content\" : \"owner2\" }";
+        String anotherResource = "{\"content\" : \"anotherResource\" }";
+
+        // ACT
+        String lockedValue = evalScriptPut(lockedPath, lockedResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner1", LockMode.REJECT, 300);
+        String normalValue = evalScriptPut(lockedPath, normalResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag");
+        String tryToLockValue = evalScriptPut(lockedPath, tryToLockResourceOwner2, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner2", LockMode.REJECT, 300);
+        String anotherValue = evalScriptPut(anotherPath, anotherResource, AbstractLuaScriptTest.MAX_EXPIRE);
+
+        // ASSERT
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(normalValue, is(equalTo(LockMode.REJECT.text())));
+        assertThat(tryToLockValue, is(equalTo(LockMode.REJECT.text())));
+        assertThat(anotherValue, is(equalTo("OK")));
+
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(lockedResource));
+        assertThat(jedis.hget("rest-storage:resources" + anotherPath, RESOURCE), equalTo(anotherResource));
+
+        assertThat(jedis.hget(prefixLock + lockedPath, OWNER), equalTo("owner1"));
+        assertThat(jedis.hget(prefixLock + lockedPath, MODE), equalTo(LockMode.REJECT.text()));
+    }
+
+    @Test
+    public void tryToPutLockedResourceSameOwner() {
+        // ARRANGE
+        String basePath = ":project:server:silent:";
+        String lockedPath =  basePath + "myResource";
+
+        String lockedResource = "{\"content\" : \"locked\" }";
+        String overwrittenResource = "{\"content\" : \"overwritten by owner of lock\" }";
+        String normalResource = "{\"content\" : \"normal\" }";
+
+        // ACT 1
+        String lockedValue = evalScriptPut(lockedPath, lockedResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner1", LockMode.SILENT, 300);
+
+        // ASSERT 1
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(lockedResource));
+
+        // ACT 2
+        String overwrittenValue = evalScriptPut(lockedPath, overwrittenResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag1", "owner1", LockMode.SILENT, 300);
+
+        // ASSERT 2
+        assertThat(overwrittenValue, is(equalTo("OK")));
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(overwrittenResource));
+
+        // ACT 3
+        String normalValue = evalScriptPut(lockedPath, normalResource, AbstractLuaScriptTest.MAX_EXPIRE);
+
+        // ASSERT 3
+        assertThat(normalValue, is(equalTo(LockMode.SILENT.text())));
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(overwrittenResource));
+    }
+
+    @Test
+    public void tryToPutWhileAndAfterResourceLock() {
+        // ARRANGE
+        long lockExpire = 5;
+        String basePath = ":project:server:silent:expire:";
+        String lockedPath =  basePath + "myResource";
+
+        String lockedResource = "{\"content\" : \"locked\" }";
+        String newResource = "{\"content\" : \"new\" }";
+
+        // ACT 1
+        jedis.expire(prefixLock +  lockedPath, 0);
+        String lockedValue = evalScriptPut(lockedPath, lockedResource, AbstractLuaScriptTest.MAX_EXPIRE, "etag", "owner1", LockMode.SILENT, lockExpire);
+        String newValue = evalScriptPut(lockedPath, newResource, AbstractLuaScriptTest.MAX_EXPIRE);
+
+        // ASSERT 1
+        assertThat(lockedValue, is(equalTo("OK")));
+        assertThat(newValue, is(equalTo(LockMode.SILENT.text())));
+
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(lockedResource));
+
+        // ACT 2 - wait
+        await().atMost(lockExpire * 2, SECONDS).until(() ->
+                evalScriptPut(lockedPath, newResource, AbstractLuaScriptTest.MAX_EXPIRE),
+                equalTo("OK")
+        );
+
+        // ASSERT 2
+        assertThat(jedis.hget("rest-storage:resources" + lockedPath, RESOURCE), equalTo(newResource));
+        assertThat(jedis.exists(prefixLock + lockedPath), equalTo(false));
     }
 }

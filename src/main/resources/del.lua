@@ -7,6 +7,10 @@ local deltaEtagsPrefix = ARGV[4]
 local expirableSet = ARGV[5]
 local minscore = tonumber(ARGV[6])
 local maxscore = tonumber(ARGV[7])
+local lockPrefix = ARGV[8]
+local lockOwner = ARGV[9]
+local lockMode = ARGV[10]
+local lockExpire = ARGV[11]
 
 local function deleteChildrenAndItself(path)
     if redis.call('exists',resourcesPrefix..path) == 1 then
@@ -15,6 +19,7 @@ local function deleteChildrenAndItself(path)
       redis.call('del', resourcesPrefix..path)
       redis.call('del', deltaResourcesPrefix..path)
       redis.call('del', deltaEtagsPrefix..path)
+      redis.call('del', lockPrefix..path)
     elseif redis.call('exists',collectionsPrefix..path) == 1 then
       local members = redis.call('zrangebyscore',collectionsPrefix..path,minscore,maxscore)
       for key,value in pairs(members) do
@@ -27,10 +32,26 @@ local function deleteChildrenAndItself(path)
     end
 end
 
+local setLockIfClaimed = function()
+    if lockOwner ~= nil and lockOwner ~= '' then
+        redis.call('hmset', lockPrefix..KEYS[1], 'owner', lockOwner, 'mode', lockMode)
+        redis.call('pexpireat',lockPrefix..KEYS[1], lockExpire)
+    end
+end
+
 local scriptState = "notFound"
 
--- CHECK OCCURENCE
-if redis.call('exists',resourcesPrefix..toDelete) == 1 or redis.call('exists',collectionsPrefix..toDelete) == 1 then 
+local isResource = redis.call('exists',resourcesPrefix..toDelete)
+local isCollection = redis.call('exists',collectionsPrefix..toDelete)
+
+if isResource == 1 or isCollection == 1 then
+
+  if isResource and  redis.call('exists',lockPrefix..toDelete) == 1 then
+    local result = redis.call('hmget',lockPrefix..KEYS[1],'owner','mode')
+    if result[1] ~= lockOwner then
+        return result[2]
+    end
+  end
 
   local score = tonumber(redis.call('zscore',expirableSet,resourcesPrefix..toDelete))  
   local expired = 0
@@ -96,9 +117,12 @@ if redis.call('exists',resourcesPrefix..toDelete) == 1 or redis.call('exists',co
         end
       end
     end
-    
+
+    if isResource then
+        setLockIfClaimed()
+    end
+
     scriptState = "deleted"
-  
   end
   
 end

@@ -8,14 +8,33 @@ local expiration = tonumber(ARGV[5])
 local maxexpiration = tonumber(ARGV[6])
 local resourceValue = ARGV[7]
 local resourceHash = ARGV[8]
+local lockPrefix = ARGV[9]
+local lockOwner = ARGV[10]
+local lockMode = ARGV[11]
+local lockExpire = ARGV[12]
 
 if redis.call('exists',collectionsPrefix..KEYS[1]) == 1 then
     return "existingCollection"
 end
 
+if redis.call('exists',lockPrefix..KEYS[1]) == 1 then
+    local result = redis.call('hmget',lockPrefix..KEYS[1],'owner','mode')
+    if result[1] ~= lockOwner then
+        return result[2]
+    end
+end
+
+local setLockIfClaimed = function()
+    if lockOwner ~= nil and lockOwner ~= '' then
+        redis.call('hmset', lockPrefix..KEYS[1], 'owner', lockOwner, 'mode', lockMode)
+        redis.call('pexpireat',lockPrefix..KEYS[1], lockExpire)
+    end
+end
+
 if redis.call('exists',resourcesPrefix..KEYS[1]) == 1 then
     local etag = redis.call('hget',resourcesPrefix..KEYS[1],'etag')
     if etag == resourceHash and expiration == maxexpiration then
+        setLockIfClaimed()
         return "notModified";
     end
 end
@@ -23,6 +42,7 @@ end
 local not_empty = function(x)
     return (type(x) == "table") and (not x.err) and (#x ~= 0)
 end
+
 
 local pathState
 local collections = {}
@@ -70,5 +90,7 @@ elseif expiration == maxexpiration then
     redis.log(redis.LOG_NOTICE, "zrem: "..expirableSet.." "..resourcesPrefix..KEYS[1])
     redis.call('zrem', expirableSet, resourcesPrefix..KEYS[1])
 end
+
+setLockIfClaimed()
 
 return "OK";

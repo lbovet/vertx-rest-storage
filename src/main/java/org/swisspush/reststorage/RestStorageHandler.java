@@ -9,6 +9,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.streams.Pump;
 import io.vertx.ext.web.Router;
+import org.swisspush.reststorage.util.LockMode;
 import org.swisspush.reststorage.util.StatusCode;
 
 import java.util.ArrayList;
@@ -22,6 +23,9 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     private static final String EXPIRE_AFTER_HEADER = "x-expire-after";
     private static final String ETAG_HEADER = "Etag";
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
+    private static final String LOCK_HEADER = "x-lock";
+    private static final String LOCK_MODE_HEADER = "x-lock-mode";
+    private static final String LOCK_EXPIRE_AFTER_HEADER = "x-lock-expire-after";
 
     private static final String OFFSET_PARAMETER = "offset";
     private static final String LIMIT_PARAMETER = "limit";
@@ -38,7 +42,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
     private String newMarker = "?new=true";
 
-    public RestStorageHandler(Vertx vertx, final Logger log, final Storage storage, final String prefix, JsonObject editorConfig) {
+    public RestStorageHandler(Vertx vertx, final Logger log, final Storage storage, final String prefix, JsonObject editorConfig, final String lockPrefix) {
         this.router = Router.router(vertx);
         this.log = log;
 
@@ -324,68 +328,108 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
         router.putWithRegex(prefixFixed + ".*").handler(ctx -> {
             ctx.request().pause();
             final String path = cleanPath(ctx.request().path().substring(prefixFixed.length()));
-            long expire = -1;
+
+            long expire = -1; // default infinit
             if (ctx.request().headers().contains(EXPIRE_AFTER_HEADER)) {
                 try {
                     expire = Long.parseLong(ctx.request().headers().get(EXPIRE_AFTER_HEADER));
                 } catch (NumberFormatException nfe) {
                     ctx.request().resume();
                     ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    ctx.response().setStatusMessage("Invalid expire after parameter: " + ctx.request().headers().get(EXPIRE_AFTER_HEADER));
+                    ctx.response().setStatusMessage("Invalid " + EXPIRE_AFTER_HEADER + " header: " + ctx.request().headers().get(EXPIRE_AFTER_HEADER));
                     ctx.response().end(ctx.response().getStatusMessage());
-                    log.error("Expire after header, invalid value: " + ctx.response().getStatusMessage());
+                    log.error(EXPIRE_AFTER_HEADER + " header, invalid value: " + ctx.response().getStatusMessage());
                     return;
                 }
             }
-            boolean merge = (ctx.request().query() != null && ctx.request().query().contains("merge=true")
-                    && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
+
             if (log.isTraceEnabled()) {
                 log.trace("RestStorageHandler put resource: " + ctx.request().uri() + " with expire: " + expire);
             }
 
-            final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
+            String lock = "";
+            long lockExpire = 300; // default 300s
+            LockMode lockMode = LockMode.SILENT; // default
 
-            storage.put(path, etag, merge, expire, new Handler<Resource>() {
-                public void handle(Resource resource) {
-                    ctx.request().resume();
+            if ( ctx.request().headers().contains(LOCK_HEADER) ) {
+                lock = ctx.request().headers().get(LOCK_HEADER);
 
-                    if (!resource.modified) {
-                        ctx.response().setStatusCode(StatusCode.NOT_MODIFIED.getStatusCode());
-                        ctx.response().setStatusMessage(StatusCode.NOT_MODIFIED.getStatusMessage());
-                        ctx.response().headers().set(ETAG_HEADER, etag);
-                        ctx.response().headers().add(CONTENT_LENGTH, "0");
-                        ctx.response().end();
+                if (ctx.request().headers().contains(LOCK_MODE_HEADER)) {
+                    try {
+                        lockMode = LockMode.valueOf(ctx.request().headers().get(LOCK_MODE_HEADER).toUpperCase());
+                    }
+                    catch (IllegalArgumentException e) {
+                        ctx.request().resume();
+                        ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        ctx.response().setStatusMessage("Invalid " + LOCK_MODE_HEADER + " header: " + ctx.request().headers().get(LOCK_MODE_HEADER));
+                        ctx.response().end(ctx.response().getStatusMessage());
+                        log.error(LOCK_MODE_HEADER + " header, invalid value: " + ctx.response().getStatusMessage());
                         return;
                     }
+                }
 
-                    if (!resource.exists && resource instanceof DocumentResource) {
-                        ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
-                        ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
-                        ctx.response().headers().add("Allow", "GET, DELETE");
-                        ctx.response().end();
-                    }
-                    if (resource instanceof CollectionResource) {
-                        ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
-                        ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
-                        ctx.response().headers().add("Allow", "GET, DELETE");
-                        ctx.response().end();
-                    }
-                    if (resource instanceof DocumentResource) {
-                        final DocumentResource documentResource = (DocumentResource) resource;
-                        documentResource.errorHandler = error -> {
-                            ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                            ctx.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                            ctx.response().end(error);
-                        };
-                        documentResource.endHandler = event -> ctx.response().end();
-                        final Pump pump = Pump.pump(ctx.request(), documentResource.writeStream);
-                        ctx.request().endHandler(v -> documentResource.closeHandler.handle(null));
-                        // TODO: exception handlers
-                        pump.start();
+                if (ctx.request().headers().contains(LOCK_EXPIRE_AFTER_HEADER)) {
+                    try {
+                        lockExpire = Long.parseLong(ctx.request().headers().get(LOCK_EXPIRE_AFTER_HEADER));
+                    } catch (NumberFormatException nfe) {
+                        ctx.request().resume();
+                        ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        ctx.response().setStatusMessage("Invalid " + LOCK_EXPIRE_AFTER_HEADER + " header: " + ctx.request().headers().get(LOCK_EXPIRE_AFTER_HEADER));
+                        ctx.response().end(ctx.response().getStatusMessage());
+                        log.error(LOCK_EXPIRE_AFTER_HEADER + " header, invalid value: " + ctx.response().getStatusMessage());
+                        return;
                     }
                 }
-            });
+            }
 
+            boolean merge = (ctx.request().query() != null && ctx.request().query().contains("merge=true")
+                    && mimeTypeResolver.resolveMimeType(path).contains("application/json"));
+
+            final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
+
+            storage.put(path, etag, merge, expire, lock, lockMode, lockExpire, resource -> {
+                ctx.request().resume();
+
+                if (resource.rejected) {
+                    ctx.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.CONFLICT.getStatusMessage());
+                    ctx.response().end();
+                    return;
+                }
+                if (!resource.modified) {
+                    ctx.response().setStatusCode(StatusCode.NOT_MODIFIED.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.NOT_MODIFIED.getStatusMessage());
+                    ctx.response().headers().set(ETAG_HEADER, etag);
+                    ctx.response().headers().add(CONTENT_LENGTH, "0");
+                    ctx.response().end();
+                    return;
+                }
+                if (!resource.exists && resource instanceof DocumentResource) {
+                    ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
+                    ctx.response().headers().add("Allow", "GET, DELETE");
+                    ctx.response().end();
+                }
+                if (resource instanceof CollectionResource) {
+                    ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
+                    ctx.response().headers().add("Allow", "GET, DELETE");
+                    ctx.response().end();
+                }
+                if (resource instanceof DocumentResource) {
+                    final DocumentResource documentResource = (DocumentResource) resource;
+                    documentResource.errorHandler = error -> {
+                        ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        ctx.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                        ctx.response().end(error);
+                    };
+                    documentResource.endHandler = event -> ctx.response().end();
+                    final Pump pump = Pump.pump(ctx.request(), documentResource.writeStream);
+                    ctx.request().endHandler(v -> documentResource.closeHandler.handle(null));
+                    // TODO: exception handlers
+                    pump.start();
+                }
+            });
         });
 
         router.deleteWithRegex(prefixFixed + ".*").handler(ctx -> {
@@ -393,8 +437,48 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
             if (log.isTraceEnabled()) {
                 log.trace("RestStorageHandler delete resource: " + ctx.request().uri());
             }
-            storage.delete(path, resource -> {
-                if (!resource.exists) {
+
+            String lock = "";
+            long lockExpire = 300; // default 300s
+            LockMode lockMode = LockMode.SILENT; // default
+
+            if ( ctx.request().headers().contains(LOCK_HEADER) ) {
+                lock = ctx.request().headers().get(LOCK_HEADER);
+
+                if (ctx.request().headers().contains(LOCK_MODE_HEADER)) {
+                    try {
+                        lockMode = LockMode.valueOf(ctx.request().headers().get(LOCK_MODE_HEADER).toUpperCase());
+                    }
+                    catch (IllegalArgumentException e) {
+                        ctx.request().resume();
+                        ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        ctx.response().setStatusMessage("Invalid " + LOCK_MODE_HEADER + " header: " + ctx.request().headers().get(LOCK_MODE_HEADER));
+                        ctx.response().end(ctx.response().getStatusMessage());
+                        log.error(LOCK_MODE_HEADER + " header, invalid value: " + ctx.response().getStatusMessage());
+                        return;
+                    }
+                }
+
+                if (ctx.request().headers().contains(LOCK_EXPIRE_AFTER_HEADER)) {
+                    try {
+                        lockExpire = Long.parseLong(ctx.request().headers().get(LOCK_EXPIRE_AFTER_HEADER));
+                    } catch (NumberFormatException nfe) {
+                        ctx.request().resume();
+                        ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        ctx.response().setStatusMessage("Invalid " + LOCK_EXPIRE_AFTER_HEADER + " header: " + ctx.request().headers().get(LOCK_EXPIRE_AFTER_HEADER));
+                        ctx.response().end(ctx.response().getStatusMessage());
+                        log.error(LOCK_EXPIRE_AFTER_HEADER + " header, invalid value: " + ctx.response().getStatusMessage());
+                        return;
+                    }
+                }
+            }
+
+            storage.delete(path, lock, lockMode, lockExpire, resource -> {
+                if (resource.rejected) {
+                    ctx.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.CONFLICT.getStatusMessage());
+                    ctx.response().end();
+                } else if (!resource.exists) {
                     ctx.request().response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
                     ctx.request().response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
                     ctx.request().response().end(StatusCode.NOT_FOUND.toString());

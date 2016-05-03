@@ -200,6 +200,7 @@ public class RedisCleanupLuaScriptTests extends AbstractLuaScriptTest {
                         add("9999999999999");
                         add(resourceValue);
                         add(UUID.randomUUID().toString());
+                        add(prefixLock);
                     }
                 }
         );

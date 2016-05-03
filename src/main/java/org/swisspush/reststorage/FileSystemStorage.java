@@ -5,6 +5,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.file.FileProps;
 import io.vertx.core.file.FileSystem;
 import io.vertx.core.file.OpenOptions;
+import org.swisspush.reststorage.util.LockMode;
 
 import java.io.File;
 import java.io.IOException;
@@ -95,6 +96,11 @@ public class FileSystemStorage implements Storage {
 
     @Override
     public void put(String path, String etag, boolean merge, long expire, final Handler<Resource> handler) {
+        put(path, etag, merge, expire, "", LockMode.SILENT, 0, handler);
+    }
+
+    @Override
+    public void put(String path, String etag, boolean merge, long expire, String lockOwner, LockMode lockMode, long lockExpire, Handler<Resource> handler) {
         final String fullPath = canonicalize(path);
         fileSystem().exists(fullPath, event -> {
             if (event.result()) {
@@ -142,6 +148,11 @@ public class FileSystemStorage implements Storage {
 
     @Override
     public void delete(String path, final Handler<Resource> handler) {
+        delete(path, "", LockMode.SILENT, 0, handler);
+    }
+
+    @Override
+    public void delete(String path, String lockOwner, LockMode lockMode, long lockExpire, final Handler<Resource> handler ) {
         final String fullPath = canonicalize(path);
         fileSystem().exists(fullPath, event -> {
             if (event.result()) {
