@@ -36,7 +36,7 @@ public abstract class AbstractLuaScriptTest {
     final static String expirableSet = "rest-storage:expirable";
     final static String prefixDeltaResources = "delta:resources";
     final static String prefixDeltaEtags = "delta:etags";
-    final static String prefixLock = "redis-storage:lock";
+    final static String prefixLock = "redis-storage:locks";
 
     static final String MAX_EXPIRE = "9999999999999";
 
