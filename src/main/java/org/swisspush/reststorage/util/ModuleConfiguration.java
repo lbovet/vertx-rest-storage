@@ -23,6 +23,7 @@ public class ModuleConfiguration {
     private String deltaResourcesPrefix;
     private String deltaEtagsPrefix;
     private long resourceCleanupAmount;
+    private String lockPrefix;
 
     public static final String PROP_ROOT = "root";
     public static final String PROP_STORAGE_TYPE = "storageType";
@@ -38,6 +39,7 @@ public class ModuleConfiguration {
     public static final String PROP_DELTA_RES_PREFIX = "deltaResourcesPrefix";
     public static final String PROP_DELTA_ETAGS_PREFIX = "deltaEtagsPrefix";
     public static final String PROP_RES_CLEANUP_AMMOUNT = "resourceCleanupAmount";
+    public static final String PROP_LOCK_PREFIX = "lockPrefix";
 
     public enum StorageType {
         filesystem, redis
@@ -54,7 +56,7 @@ public class ModuleConfiguration {
     public ModuleConfiguration(String root, StorageType storageType, int port, String prefix, String storageAddress,
                                JsonObject editorConfig, String redisHost, int redisPort, String expirablePrefix,
                                String resourcesPrefix, String collectionsPrefix, String deltaResourcesPrefix,
-                               String deltaEtagsPrefix, long resourceCleanupAmount) {
+                               String deltaEtagsPrefix, long resourceCleanupAmount, String lockPrefix) {
         this.root = root;
         this.storageType = storageType;
         this.port = port;
@@ -69,6 +71,7 @@ public class ModuleConfiguration {
         this.deltaResourcesPrefix = deltaResourcesPrefix;
         this.deltaEtagsPrefix = deltaEtagsPrefix;
         this.resourceCleanupAmount = resourceCleanupAmount;
+        this.lockPrefix = lockPrefix;
     }
 
     public static ModuleConfigurationBuilder with(){
@@ -78,7 +81,7 @@ public class ModuleConfiguration {
     private ModuleConfiguration(ModuleConfigurationBuilder builder){
         this(builder.root, builder.storageType, builder.port, builder.prefix, builder.storageAddress, builder.editorConfig,
                 builder.redisHost, builder.redisPort, builder.expirablePrefix, builder.resourcesPrefix, builder.collectionsPrefix,
-                builder.deltaResourcesPrefix, builder.deltaEtagsPrefix, builder.resourceCleanupAmount);
+                builder.deltaResourcesPrefix, builder.deltaEtagsPrefix, builder.resourceCleanupAmount, builder.lockPrefix);
     }
 
     public JsonObject asJsonObject(){
@@ -97,6 +100,7 @@ public class ModuleConfiguration {
         obj.put(PROP_DELTA_RES_PREFIX, getDeltaResourcesPrefix());
         obj.put(PROP_DELTA_ETAGS_PREFIX, getDeltaEtagsPrefix());
         obj.put(PROP_RES_CLEANUP_AMMOUNT, getResourceCleanupAmount());
+        obj.put(PROP_LOCK_PREFIX, getLockPrefix());
         return obj;
     }
 
@@ -143,6 +147,9 @@ public class ModuleConfiguration {
         }
         if(json.containsKey(PROP_RES_CLEANUP_AMMOUNT)){
             builder.resourceCleanupAmount(json.getLong(PROP_RES_CLEANUP_AMMOUNT));
+        }
+        if(json.containsKey(PROP_LOCK_PREFIX)) {
+            builder.lockPrefix(json.getString(PROP_LOCK_PREFIX));
         }
         return builder.build();
     }
@@ -203,6 +210,10 @@ public class ModuleConfiguration {
         return resourceCleanupAmount;
     }
 
+    public String getLockPrefix() {
+        return lockPrefix;
+    }
+
     @Override
     public String toString() {
         return asJsonObject().toString();
@@ -235,6 +246,7 @@ public class ModuleConfiguration {
         private String deltaResourcesPrefix;
         private String deltaEtagsPrefix;
         private long resourceCleanupAmount;
+        private String lockPrefix;
 
         public ModuleConfigurationBuilder(){
             this.root = ".";
@@ -251,6 +263,7 @@ public class ModuleConfiguration {
             this.deltaResourcesPrefix = "delta:resources";
             this.deltaEtagsPrefix = "delta:etags";
             this.resourceCleanupAmount = 100000L;
+            this.lockPrefix = "rest-storage:locks";
         }
 
         public ModuleConfigurationBuilder root(String root){
@@ -332,6 +345,11 @@ public class ModuleConfiguration {
 
         public ModuleConfigurationBuilder resourceCleanupAmount(long resourceCleanupAmount){
             this.resourceCleanupAmount = resourceCleanupAmount;
+            return this;
+        }
+
+        public ModuleConfigurationBuilder lockPrefix(String lockPrefix) {
+            this.lockPrefix = lockPrefix;
             return this;
         }
 

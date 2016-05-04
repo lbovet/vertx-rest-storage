@@ -16,6 +16,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
+import org.swisspush.reststorage.util.LockMode;
 import redis.clients.jedis.Jedis;
 
 import java.io.BufferedReader;
@@ -35,6 +36,7 @@ public abstract class AbstractLuaScriptTest {
     final static String expirableSet = "rest-storage:expirable";
     final static String prefixDeltaResources = "delta:resources";
     final static String prefixDeltaEtags = "delta:etags";
+    final static String prefixLock = "redis-storage:locks";
 
     static final String MAX_EXPIRE = "9999999999999";
 
@@ -115,8 +117,12 @@ public abstract class AbstractLuaScriptTest {
         return evalScriptPut(resourceName, resourceValue, expire, UUID.randomUUID().toString());
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked", "serial"})
     protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire, final String etag) {
+        return evalScriptPut(resourceName, resourceValue, expire, etag, "", LockMode.SILENT, 300);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked", "serial"})
+    protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire, final String etag, final String lockOwner, final LockMode lockMode, final long lockExpire) {
         String putScript = readScript("put.lua");
         String etagTmp;
         if (etag != null && !etag.isEmpty()) {
@@ -124,6 +130,9 @@ public abstract class AbstractLuaScriptTest {
         } else {
             etagTmp = UUID.randomUUID().toString();
         }
+
+        String lockExpireInMillis = String.valueOf(System.currentTimeMillis() + (lockExpire * 1000));
+
         final String etagValue = etagTmp;
         return (String) jedis.eval(putScript, new ArrayList() {
                     {
@@ -139,6 +148,10 @@ public abstract class AbstractLuaScriptTest {
                         add("9999999999999");
                         add(resourceValue);
                         add(etagValue);
+                        add(prefixLock);
+                        add(lockOwner);
+                        add(lockMode.text());
+                        add(lockExpireInMillis);
                     }
                 }
         );

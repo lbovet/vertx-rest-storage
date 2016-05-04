@@ -103,6 +103,18 @@ to send the names of the subresources in the body of the request. Using the exam
     "subResources" : ["resource1", "resource2", "resource3"]
 }
 ```
+### Lock Mechanism
+The lock mechanism allows you to lock a resource for a specified time. This way only the owner of the lock is able to write or delete the given resource.
+To lock a resource, you have to add the following headers to your PUT / DELETE request.
+
+| Headers | Type | Default value | Description |
+|:------- | :--- | :------------ | :---------- |
+|x-lock | String | | The owner of the lock. |
+|x-lock-mode | silent | **silent** | Any PUT or DELETE performed on this resource without the valid owner will have no effect and get *200 OK* back.  |
+|             | reject |  | Any PUT or DELETE performed on this resource without the valid owner will have no effect and get *409 Conflict* back. |
+|x-lock-expire-after | long | **300** | Defines the lock lifetime. The default value is set to *300* seconds.  |
+
+`Warning:` The lock will be always removed if you perform a DELETE on a collection containing a locked resource. There is no check for locks in collections.
 
 ## Configuration
 
@@ -123,6 +135,7 @@ The following configuration values are available:
 | collectionsPrefix | redis | rest-storage:collections | The prefix for collections redis keys |
 | deltaResourcesPrefix | redis | delta:resources | The prefix for delta resources redis keys |
 | deltaEtagsPrefix | redis | delta:etags | The prefix for delta etags redis keys |
+| lockPrefix | redis | rest-storage:locks | The prefix for lock redis keys |
 | resourceCleanupAmount | redis | 100000 | The maximum amount of resources to clean in a single cleanup run |
 
 ### Configuration util

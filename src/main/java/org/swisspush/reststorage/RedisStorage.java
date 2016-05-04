@@ -15,6 +15,7 @@ import io.vertx.redis.RedisOptions;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
+import org.swisspush.reststorage.util.LockMode;
 import org.swisspush.reststorage.util.ModuleConfiguration;
 
 import java.io.*;
@@ -36,6 +37,7 @@ public class RedisStorage implements Storage {
     private String redisDeltaEtagsPrefix;
     private String expirableSet;
     private long cleanupResourcesAmount;
+    private String redisLockPrefix;
     private Vertx vertx;
     private RedisClient redisClient;
     private Map<LuaScript,LuaScriptState> luaScripts = new HashMap<>();
@@ -47,6 +49,7 @@ public class RedisStorage implements Storage {
         this.redisDeltaResourcesPrefix = config.getDeltaResourcesPrefix();
         this.redisDeltaEtagsPrefix = config.getDeltaEtagsPrefix();
         this.cleanupResourcesAmount = config.getResourceCleanupAmount();
+        this.redisLockPrefix = config.getLockPrefix();
 
         this.vertx = vertx;
         this.redisClient = RedisClient.create(vertx, new RedisOptions().setHost(config.getRedisHost()).setPort(config.getRedisPort()));
@@ -606,8 +609,8 @@ public class RedisStorage implements Storage {
         return UUID.randomUUID().toString();
     }
 
-    @Override
-    public void put(String path, final String etag, final boolean merge, final long expire, final Handler<Resource> handler) {
+
+    public void put(String path, final String etag, final boolean merge, final long expire, final String lockOwner, final LockMode lockMode, final long lockExpire, final Handler<Resource> handler) {
         final String key = encodePath(path);
         final DocumentResource d = new DocumentResource();
         final ByteArrayWriteStream stream = new ByteArrayWriteStream();
@@ -619,6 +622,9 @@ public class RedisStorage implements Storage {
             if (expire > -1) {
                 expireInMillis = String.valueOf(System.currentTimeMillis() + (expire * 1000));
             }
+
+            String lockExpireInMillis = String.valueOf(System.currentTimeMillis() + (lockExpire * 1000));
+
             List<String> keys = Collections.singletonList(key);
             List<String> arguments = Arrays.asList(
                     redisResourcesPrefix,
@@ -628,11 +634,20 @@ public class RedisStorage implements Storage {
                     expireInMillis,
                     MAX_EXPIRE_IN_MILLIS,
                     encodeBinary(stream.getBytes()),
-                    etagValue
+                    etagValue,
+                    redisLockPrefix,
+                    lockOwner,
+                    lockMode.text(),
+                    lockExpireInMillis
             );
             reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arguments, handler), 0);
         };
         handler.handle(d);
+    }
+
+    @Override
+    public void put(String path, final String etag, final boolean merge, final long expire, final Handler<Resource> handler) {
+        put(path, etag, merge, expire, "", LockMode.SILENT, 0, handler);
     }
 
     /**
@@ -670,7 +685,10 @@ public class RedisStorage implements Storage {
                         handler.handle(d);
                     } else if("notModified".equals(result)){
                         notModified(handler);
-                    } else {
+                    } else if(LockMode.REJECT.text().equals(result)) {
+                        rejected(handler);
+                    }
+                    else {
                         d.endHandler.handle(null);
                     }
                 } else {
@@ -692,11 +710,18 @@ public class RedisStorage implements Storage {
         }
     }
 
-
     @Override
     public void delete(String path, final Handler<Resource> handler) {
+        delete(path, "", LockMode.SILENT, 0, handler);
+    }
+
+    @Override
+    public void delete(String path, String lockOwner, LockMode lockMode, long lockExpire, final Handler<Resource> handler ) {
         final String key = encodePath(path);
         List<String> keys = Collections.singletonList(key);
+
+        String lockExpireInMillis = String.valueOf(System.currentTimeMillis() + (lockExpire * 1000));
+
         List<String> arguments = Arrays.asList(
                 redisResourcesPrefix,
                 redisCollectionsPrefix,
@@ -704,7 +729,11 @@ public class RedisStorage implements Storage {
                 redisDeltaEtagsPrefix,
                 expirableSet,
                 String.valueOf(System.currentTimeMillis()),
-                MAX_EXPIRE_IN_MILLIS
+                MAX_EXPIRE_IN_MILLIS,
+                redisLockPrefix,
+                lockOwner,
+                lockMode.text(),
+                lockExpireInMillis
         );
         reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.DELETE, new Delete(keys, arguments, handler), 0);
     }
@@ -748,6 +777,10 @@ public class RedisStorage implements Storage {
                 }
                 if ("notFound".equals(result)) {
                     notFound(handler);
+                    return;
+                }
+                else if(LockMode.REJECT.text().equals(result)) {
+                    rejected(handler);
                     return;
                 }
                 Resource r = new Resource();
@@ -860,6 +893,12 @@ public class RedisStorage implements Storage {
     private void notModified(Handler<Resource> handler){
         Resource r = new Resource();
         r.modified = false;
+        handler.handle(r);
+    }
+
+    private void rejected(Handler<Resource> handler) {
+        Resource r = new Resource();
+        r.rejected = true;
         handler.handle(r);
     }
 

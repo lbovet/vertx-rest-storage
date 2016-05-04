@@ -1,6 +1,7 @@
 package org.swisspush.reststorage;
 
 import io.vertx.core.Handler;
+import org.swisspush.reststorage.util.LockMode;
 
 import java.util.List;
 
@@ -12,7 +13,11 @@ public interface Storage {
 
     void put(String path, String etag, boolean merge, long expire, Handler<Resource> handler);
 
+    void put(String path, String etag, boolean merge, long expire, String lockOwner, LockMode lockMode, long lockExpire, Handler<Resource> handler);
+
     void delete(String path, Handler<Resource> handler);
+
+    void delete(String path, String lockOwner, LockMode lockMode, long lockExpire, Handler<Resource> handler);
 
     void cleanup(Handler<DocumentResource> handler, String cleanupResourcesAmount);
 
