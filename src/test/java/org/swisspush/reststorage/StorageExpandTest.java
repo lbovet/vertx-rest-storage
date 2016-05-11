@@ -161,6 +161,30 @@ public class StorageExpandTest extends AbstractTestCase {
     }
 
     @Test
+    public void testDoubleSlashesHandlingForPOSTRequests(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
+        with().body("{ \"foo\": \"bar2\" }").put("/server/resources/res2");
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        given()
+                .urlEncodingEnabled(false)
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
+                .when()
+                .post("/server//resources?storageExpand=true")
+                .then()
+                .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
+                .body("", allOf(hasKey("res1"), hasKey("res2"), hasKey("res3")))
+                .body("res1.foo", equalTo("bar1"))
+                .body("res2.foo", equalTo("bar2"))
+                .body("res3.foo", equalTo("bar3"));
+
+        async.complete();
+    }
+
+    @Test
     public void testSimpleWithUnknownSubResources(TestContext context) {
         Async async = context.async();
         delete("/server/resources");

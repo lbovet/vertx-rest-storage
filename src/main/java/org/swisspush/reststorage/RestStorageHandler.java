@@ -506,7 +506,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     }
 
     private String cleanPath(String value) {
-        value = value.replaceAll("\\.\\.", "");
+        value = value.replaceAll("\\.\\.", "").replaceAll("\\/\\/", "/");
         while (value.endsWith("/")) {
             value = value.substring(0, value.length() - 1);
         }
