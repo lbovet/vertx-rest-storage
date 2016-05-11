@@ -15,6 +15,28 @@ import static org.hamcrest.CoreMatchers.hasItems;
 public class CrudTest extends AbstractTestCase {
 
     @Test
+    public void testDoubleSlashesHandling(TestContext context) {
+        Async async = context.async();
+
+        // put with double slashes
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar\" }").put("resources//myres");
+
+        // get with single/double slashes should both work
+        when().get("resources/myres").then().assertThat().body("foo", equalTo("bar"));
+        given().urlEncodingEnabled(false).when().get("resources//myres").then().assertThat().body("foo", equalTo("bar"));
+
+        // delete with double slashes. after this, the resource should be gone
+        given().urlEncodingEnabled(false).delete("resources//myres").then().assertThat().statusCode(200);
+        given().delete("resources/myres").then().assertThat().statusCode(404);
+
+        // get again with double slashes
+        when().get("resources/myres").then().assertThat().statusCode(404);
+        given().urlEncodingEnabled(false).when().get("resources//myres").then().assertThat().statusCode(404);
+
+        async.complete();
+    }
+
+    @Test
     public void testPutGetDelete(TestContext context) {
         Async async = context.async();
         with().body("{ \"foo\": \"bar\" }").put("res");
