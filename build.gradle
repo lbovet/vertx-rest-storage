@@ -1,106 +1,232 @@
-apply from: "gradle/vertx.gradle"
+apply plugin: 'idea'
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'signing'
+apply plugin: 'com.github.johnrengelman.shadow'
 
-/*
-Usage:
+if (!project.hasProperty('repoUsername')) {
+    ext.repoUsername = 'randomUsername'
+} else {
+    println 'got property repoUsername: ' + repoUsername
+}
 
-./gradlew task_name
+if (!project.hasProperty('repoPassword')) {
+    ext.repoPassword = 'randomPassword'
+} else {
+    //println 'got property repoPassword: ' + repoPassword
+}
 
-(or gradlew.bat task_name if you have the misfortune to have to use Windows)
+if(!project.hasProperty('uploadRepository')) {
+    ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+} else {
+    //println 'found custom uploadRepository: ' + uploadRepository
+}
 
-If no task name is specified then the default task 'assemble' is run
+if(!project.hasProperty('snapshotRepository')) {
+    ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+} else {
+    println 'found custom snapshotRepository: ' + snapshotRepository
+}
 
-Task names are:
+repositories {
+    try {
+        maven { url "$repository" }
+        println 'use custom repository: ' + "$repository"
+    } catch(Exception e) {
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    }
+    mavenCentral()
+}
 
-idea - generate a skeleton IntelliJ IDEA project
+buildscript {
+    repositories {
 
-eclipse - generate a skeleton Eclipse IDE project
-
-assemble - builds the outputs, by default this is the module zip file. It can also include a jar file if produceJar
-          in gradle.properties is set to true. Outputs are created in build/libs.
-          if pullInDeps in gradle.properties is set to 'true' then the modules dependencies will be
-          automatically pulled into a nested mods directory inside the module during the build
-
-copyMod - builds and copies the module to the local 'mods' directory so you can execute vertx runmod (etc)
-          directly from the command line
-
-modZip - creates the module zip into build/libs
-
-clean - cleans everything up
-
-test - runs the tests. An nice html test report is created in build/reports/tests (index.html)
-
-runMod - runs the module. This is similar to executing vertx runmod from the command line except that it does
-         not use the version of Vert.x installed and on the PATH to run it. Instead it uses the version of Vert.x
-         that the module was compiled and tested against.
-
-runModIDEA - run the module from the project resources in IDEA. This allows you to run the module without building it
-first!
-
-runModEclipse - run the module from the project resources in Eclipse. This allows you to run the module without
-building it  first!
-
-pullInDeps - pulls in all dependencies of the module into a nested module directory
-
-uploadArchives - upload the module zip file (and jar if one has been created) to Nexus. You will need to
-                 configure sonatypeUsername and sonatypePassword in ~/.gradle/gradle.properties.
-
-install - install any jars produced to the local Maven repository (.m2)
-
- */
+        try {
+            maven { url "$repository" }
+            println 'use custom plugin repository: ' + "$repository"
+        } catch(Exception e) {
+            maven { url "https://plugins.gradle.org/m2/" }
+            println 'use standard plugin repository'
+        }
+        maven {
+            url "http://artifactory.pnet.ch/artifactory/swisspost/"
+        }
+    }
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:1.2.3"
+    }
+}
 
 dependencies {
-  /*
-  Add your module jar dependencies here
-  E.g.
-  compile "com.foo:foo-lib:1.0.1" - for compile time deps - this will end up in your module too!
-  testCompile "com.foo:foo-lib:1.0.1" - for test time deps
-  provided "com.foo:foo-lib:1.0.1" - if you DON'T want it to be packaged in the module zip
-  */
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "io.vertx:vertx-redis-client:$vertxVersion"
+    compile "io.vertx:vertx-web:$vertxVersion"
+    compile "commons-lang:commons-lang:$commonslangVersion"
+    compile "commons-codec:commons-codec:$commonscodecVersion"
+    compile "org.hamcrest:hamcrest-core:1.3"
 
+    runtime "commons-lang:commons-lang:$commonslangVersion"
+    runtime "commons-codec:commons-codec:$commonscodecVersion"
+    runtime "org.hamcrest:hamcrest-core:1.3"
+
+    testCompile "redis.clients:jedis:$jedisVersion"
+    testCompile "junit:junit:$junitVersion"
+    testCompile "io.vertx:vertx-unit:$vertxVersion"
+    testCompile 'com.github.kstyrc:embedded-redis:0.6'
+    testCompile 'com.jayway.restassured:rest-assured:2.4.1'
+    testCompile 'org.springframework:spring-context:4.1.0.RELEASE'
+    testCompile 'org.springframework:spring-jdbc:4.1.0.RELEASE'
+    testCompile 'com.jayway.awaitility:awaitility-scala:1.6.3'
+
+    testRuntime 'com.github.kstyrc:embedded-redis:0.6'
+}
+
+ext.uploadToMavenCentral = false
+ext.upload = false
+gradle.taskGraph.whenReady { taskGraph ->
+    if (taskGraph.hasTask(uploadArchives)) {
+        ext.upload = true
+        println "upload: true"
+        if ("$uploadRepository".toLowerCase().contains("sonatype")  && "$snapshotRepository".toLowerCase().contains("sonatype")) {
+            println "uploadToMavenCentral: true"
+            ext.uploadToMavenCentral = true
+        }
+    }
+}
+
+task sourceJar(type: Jar) {
+    description = 'Builds a source jar artifact suitable for maven deployment.'
+    classifier = 'sources'
+    from sourceSets.main.java
+}
+sourceJar.onlyIf { upload }
+
+compileJava {
+    options.encoding = "UTF-8"
+}
+
+javadoc {
+    options.encoding = "UTF-8"
+    classpath = configurations.compile
+}
+javadoc.onlyIf { upload }
+
+task javadocJar(type: Jar) {
+    description = 'Builds a javadoc jar artifact suitable for maven deployment.'
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+javadocJar.dependsOn javadoc
+javadocJar.onlyIf { upload }
+
+build.dependsOn sourceJar, javadocJar
+
+shadowJar {
+    manifest {
+        attributes 'Main-Class': 'org.swisspush.reststorage.RestStorageRunner'
+    }
+}
+build.finalizedBy(shadowJar)
+
+artifacts {
+    archives jar, sourceJar, javadocJar, shadowJar
+}
+signing {
+    required { uploadToMavenCentral }
+    sign configurations.archives
 }
 
 test {
-  testLogging {
-    events "passed", "skipped", "failed"
-    exceptionFormat = "full"
-  }
+    testLogging {
+        // set options for log level LIFECYCLE
+        events "started", "passed", "skipped", "failed"
+        exceptionFormat "full"
+
+        // set options for log level QUIET
+        quiet {
+            events "started", "passed", "skipped", "failed"
+            exceptionFormat "full"
+        }
+
+        // remove standard output/error logging from --info builds
+        // by assigning only 'failed' and 'skipped' events
+        info.events = ["failed", "skipped"]
+
+        afterSuite { desc, result ->
+            if (!desc.parent) { // will match the outermost suite
+                def output = "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+                def startItem = '|  ', endItem = '  |'
+                def repeatLength = startItem.length() + output.length() + endItem.length()
+                println('\n' + ('-' * repeatLength) + '\n' + startItem + output + endItem + '\n' + ('-' * repeatLength))
+            }
+        }
+    }
 }
 
-/*
-If you're uploading stuff to Maven, Gradle needs to generate a POM.
-Please edit the details below.
- */
+uploadArchives {
+    group 'build'
+    description = "Does a maven deploy of archives artifacts"
+
+    repositories {
+        mavenDeployer {
+
+            configuration = configurations.archives
+
+            repository(url: "$uploadRepository") {
+                authentication(userName: "$repoUsername", password: "$repoPassword")
+            }
+
+            snapshotRepository(url: "$snapshotRepository") {
+                authentication(userName: "$repoUsername", password: "$repoPassword")
+            }
+
+            if(uploadToMavenCentral) {
+                beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
+            }
+
+
+            configurePom(pom)
+        }
+    }
+    }
+
+
 def configurePom(def pom) {
-  pom.project {
-    name rootProject.name
-    description 'Description of your module here'
-    inceptionYear '2013'
-    packaging 'jar'
+    pom.project {
+        name 'gateleen'
+        description 'Middleware library based on Vert.x to build advanced JSON/REST communication servers'
+        inceptionYear '2016'
+        packaging 'jar'
+        url 'https://github.com/swisspush/vertx-rest-storage'
 
-    url 'Your project url'
+        developers {
+            developer {
+                id 'floriankammermann'
+                name 'Florian Kammermann'
+                url 'https://github.com/floriankammermann'
+            }
+            developer {
+                id 'mcweba'
+                name 'Marc-Andre Weber'
+                url 'https://github.com/mcweba'
+            }
+        }
 
-    developers {
-      developer {
-        id 'developer id (e.g. github username)'
-        name 'developer name'
-        email 'developer email'
-      }
+        scm {
+            url 'https://github.com/swisspush/vertx-rest-storage.git'
+        }
+
+        licenses {
+            license {
+                name 'The Apache Software License, Version 2.0'
+                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                distribution 'repo'
+            }
+        }
+
+        properties {
+            setProperty('project.build.sourceEncoding', 'UTF8')
+        }
     }
-
-    scm {
-      url 'url to your repo - e.g. github repo url'
-    }
-
-    licenses {
-      license {
-        name 'The name of the license used, e.g.: The Apache Software License, Version 2.0'
-        url 'URl to the license, e.g.: http://www.apache.org/licenses/LICENSE-2.0.txt'
-        distribution 'repo'
-      }
-    }
-
-    properties {
-      setProperty('project.build.sourceEncoding', 'UTF8')
-    }
-  }
 }
+
