@@ -126,7 +126,6 @@ shadowJar {
         attributes 'Main-Class': 'org.swisspush.reststorage.RestStorageRunner'
     }
 }
-build.finalizedBy(shadowJar)
 
 artifacts {
     archives jar, sourceJar, javadocJar, shadowJar
