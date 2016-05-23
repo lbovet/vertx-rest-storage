@@ -180,7 +180,8 @@ As standard the default maven repositories are set.
 You can overwrite these repositories by setting these properties (`-Pproperty=value`):
 
 * `repository` this is the repository where resources are fetched
-* `uploadRepository` the repository used in `uploadArchives`
+* `uploadRepository` the repository used in `uploadArchives` for releases
+* `snapshotRepository` the repository used in `uploadArchives` for snapshot
 * `repoUsername` the username for uploading archives
 * `repoPassword` the password for uploading archives
 
