@@ -21,6 +21,12 @@ The following methods are supported on intermediate nodes (collections):
 
 Runs either as a module or can be integrated into an existing application by instantiating the RestStorageHandler class directly.
 
+## Run it
+1. clone the repository.
+1. run `gradle build -x test`
+1. run the fatjar with `java -jar build/libs/rest-storage-x.x.x-all.jar
+1. you get a rest-storage, that stores to the filesystem in the directory where you started it. If you want to use the rest-storage with redis, you have to pass the configuration over a json file with `-conf conf.json`
+
 ## Features
 ### GET
 Invoking GET request on a leave (document) returns the content of the resource.
