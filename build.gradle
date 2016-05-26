@@ -193,8 +193,8 @@ uploadArchives {
 
 def configurePom(def pom) {
     pom.project {
-        name 'gateleen'
-        description 'Middleware library based on Vert.x to build advanced JSON/REST communication servers'
+        name 'rest-storage'
+        description 'Persistence for REST resources in the filesystem or a redis database'
         inceptionYear '2016'
         packaging 'jar'
         url 'https://github.com/swisspush/vertx-rest-storage'
