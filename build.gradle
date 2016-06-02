@@ -180,10 +180,7 @@ uploadArchives {
                 authentication(userName: "$repoUsername", password: "$repoPassword")
             }
 
-            if(uploadToMavenCentral) {
-                beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
-            }
-
+            beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
 
             configurePom(pom)
         }
