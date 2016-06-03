@@ -4,6 +4,8 @@ apply plugin: 'maven'
 apply plugin: 'signing'
 apply plugin: 'com.github.johnrengelman.shadow'
 
+archivesBaseName='rest-storage'
+
 if (!project.hasProperty('repoUsername')) {
     ext.repoUsername = 'randomUsername'
 } else {
