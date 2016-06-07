@@ -50,9 +50,6 @@ buildscript {
             maven { url "https://plugins.gradle.org/m2/" }
             println 'use standard plugin repository'
         }
-        maven {
-            url "http://artifactory.pnet.ch/artifactory/swisspost/"
-        }
     }
     dependencies {
         classpath "com.github.jengelman.gradle.plugins:shadow:1.2.3"
