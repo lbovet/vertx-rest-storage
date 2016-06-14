@@ -38,6 +38,10 @@ local function toHumanReadable(size)
     end
 end
 
+if "/" == toAnalyze then
+    toAnalyze = ""
+end
+
 analyzeChildrenAndItself(toAnalyze)
 
 return "Found "..resourceCount.." resources with total size of "..toHumanReadable(resourcesSize)

@@ -50,6 +50,11 @@ if options[:target] == nil
 end
 
 def buildTargetKey(path)
+
+    if "/".eql? path
+        return path
+    end
+
     if !path.start_with?("/")
         path = "/".concat(path)
     end
