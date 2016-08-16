@@ -120,6 +120,7 @@ To lock a resource, you have to add the following headers to your PUT / DELETE r
 |x-lock-mode | silent | **silent** | Any PUT or DELETE performed on this resource without the valid owner will have no effect and get *200 OK* back.  |
 |             | reject |  | Any PUT or DELETE performed on this resource without the valid owner will have no effect and get *409 Conflict* back. |
 |x-lock-expire-after | long | **300** | Defines the lock lifetime. The default value is set to *300* seconds.  |
+|x-expire-after | long | | Defines the lifetime of a resource  |
 
 `Warning:` The lock will be always removed if you perform a DELETE on a collection containing a locked resource. There is no check for locks in collections.
 
