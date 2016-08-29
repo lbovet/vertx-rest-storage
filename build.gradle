@@ -75,7 +75,7 @@ dependencies {
     testCompile 'com.jayway.restassured:rest-assured:2.4.1'
     testCompile 'org.springframework:spring-context:4.1.0.RELEASE'
     testCompile 'org.springframework:spring-jdbc:4.1.0.RELEASE'
-    testCompile 'com.jayway.awaitility:awaitility-scala:1.6.3'
+    testCompile "com.jayway.awaitility:awaitility:$awaitilityVersion"
 
     testRuntime 'com.github.kstyrc:embedded-redis:0.6'
 }

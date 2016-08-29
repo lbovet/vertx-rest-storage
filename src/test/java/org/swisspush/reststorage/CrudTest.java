@@ -1,5 +1,6 @@
 package org.swisspush.reststorage;
 
+import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -7,6 +8,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItems;
@@ -51,6 +53,10 @@ public class CrudTest extends AbstractTestCase {
         Async async = context.async();
         with().body("{ \"foo\": \"bar\" }").put("resources/res1");
         with().body("{ \"foo\": \"bar2\" }").put("resources/res2");
+
+        checkGETStatusCodeWithAwait5sec("resources/res1", 200);
+        checkGETStatusCodeWithAwait5sec("resources/res2", 200);
+
         when().get("resources").then().assertThat().body("resources", hasItems("res1", "res2"));
         async.complete();
     }
@@ -59,10 +65,12 @@ public class CrudTest extends AbstractTestCase {
     public void testMerge(TestContext context) {
         Async async = context.async();
         with().body("{ \"foo\": \"bar\", \"hello\": \"world\" }").put("res");
+        checkGETStatusCodeWithAwait5sec("res", 200);
         with().
                 param("merge", "true").
                 body("{ \"foo\": \"bar2\" }").
                 put("res");
+        checkGETStatusCodeWithAwait5sec("res", 200);
         get("res").then().assertThat().
                 statusCode(200).
                 body("foo", equalTo("bar2")).
@@ -75,8 +83,11 @@ public class CrudTest extends AbstractTestCase {
         Async async = context.async();
         with().body("{ \"foo\": \"bar1\" }").put("branch1/res/leaf");
         with().body("{ \"foo\": \"bar2\" }").put("branch2/res/leaf");
+        checkGETStatusCodeWithAwait5sec("branch1/res/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch2/res/leaf", 200);
 
         delete("branch2");
+        checkGETStatusCodeWithAwait5sec("branch2", 404);
 
         RestAssured.basePath = "";
 
@@ -96,8 +107,11 @@ public class CrudTest extends AbstractTestCase {
         Async async = context.async();
         with().body("{ \"foo\": \"bar1\" }").put("branch1/res/res1/leaf");
         with().body("{ \"foo\": \"bar2\" }").put("branch2/res/res2/leaf");
+        checkGETStatusCodeWithAwait5sec("branch1/res/res1/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch2/res/res2/leaf", 200);
 
         delete("branch2/res");
+        checkGETStatusCodeWithAwait5sec("branch2/res", 404);
 
         RestAssured.basePath = "";
 
@@ -117,8 +131,11 @@ public class CrudTest extends AbstractTestCase {
         Async async = context.async();
         with().body("{ \"foo\": \"bar1\" }").put("branch1/res/res1/leaf");
         with().body("{ \"foo\": \"bar2\" }").put("branch2/res/res2/leaf");
+        checkGETStatusCodeWithAwait5sec("branch1/res/res1/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch2/res/res2/leaf", 200);
 
         delete("branch1/res");
+        checkGETStatusCodeWithAwait5sec("branch1/res", 404);
 
         RestAssured.basePath = "";
 
@@ -137,10 +154,13 @@ public class CrudTest extends AbstractTestCase {
         Async async = context.async();
         with().body("{ \"foo\": \"bar\" }").put("node/node/node/branch1/res/res1/leaf");
         with().body("{ \"foo\": \"bar\" }").put("node/node/node/branch2/res/res2/leaf");
+        checkGETStatusCodeWithAwait5sec("node/node/node/branch1/res/res1/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("node/node/node/branch2/res/res2/leaf", 200);
 
         RestAssured.basePath = "";
 
         delete("/");
+        checkGETStatusCodeWithAwait5sec("/", 404);
 
         when().get("node").then().assertThat().statusCode(404);
         when().get("node/node").then().assertThat().statusCode(404);
@@ -162,8 +182,12 @@ public class CrudTest extends AbstractTestCase {
         with().body("{ \"foo\": \"bar1\" }").put("node/branch1/res/leaf");
         with().body("{ \"foo\": \"bar2\" }").put("node/branch2/res/leaf");
         with().body("{ \"foo\": \"bar3\" }").put("node/branch3/res/leaf");
+        checkGETStatusCodeWithAwait5sec("node/branch1/res/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("node/branch2/res/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("node/branch3/res/leaf", 200);
 
         delete("node/branch3/res/leaf");
+        checkGETStatusCodeWithAwait5sec("node/branch3/res/leaf", 404);
 
         RestAssured.basePath = "";
 
@@ -185,8 +209,12 @@ public class CrudTest extends AbstractTestCase {
         with().body("{ \"foo\": \"bar1\" }").put("branch1/res/res1/leaf");
         with().body("{ \"foo\": \"bar2\" }").put("branch2/res/res2/leaf");
         with().body("{ \"foo\": \"bar3\" }").put("branch3/res/res3/leaf");
+        checkGETStatusCodeWithAwait5sec("branch1/res/res1/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch2/res/res2/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch3/res/res3/leaf", 200);
 
         delete("branch1/res");
+        checkGETStatusCodeWithAwait5sec("branch1/res", 404);
 
         RestAssured.basePath = "";
 
@@ -211,8 +239,12 @@ public class CrudTest extends AbstractTestCase {
         with().body("{ \"foo\": \"bar1\" }").put("branch1/res/res1/leaf");
         with().body("{ \"foo\": \"bar2\" }").put("branch2/res/res2/leaf");
         with().body("{ \"foo\": \"bar3\" }").put("branch3/res/res3/leaf");
+        checkGETStatusCodeWithAwait5sec("branch1/res/res1/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch2/res/res2/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("branch3/res/res3/leaf", 200);
 
         delete("branch2/res");
+        checkGETStatusCodeWithAwait5sec("branch2/res", 404);
 
         RestAssured.basePath = "";
 
@@ -238,10 +270,14 @@ public class CrudTest extends AbstractTestCase {
         with().body("{ \"foo\": \"bar\" }").put("node/node/node/branch1/res/res1/leaf");
         with().body("{ \"foo\": \"bar\" }").put("node/node/node/branch2/res/res2/leaf");
         with().body("{ \"foo\": \"bar\" }").put("node/node/node/branch3/res/res3/leaf");
+        checkGETStatusCodeWithAwait5sec("node/node/node/branch1/res/res1/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("node/node/node/branch2/res/res2/leaf", 200);
+        checkGETStatusCodeWithAwait5sec("node/node/node/branch3/res/res3/leaf", 200);
 
         RestAssured.basePath = "";
 
         delete("/");
+        checkGETStatusCodeWithAwait5sec("/", 404);
 
         when().get("node").then().assertThat().statusCode(404);
         when().get("node/node").then().assertThat().statusCode(404);
@@ -258,5 +294,9 @@ public class CrudTest extends AbstractTestCase {
         when().get("node/node/node/branch3/res/leaf").then().assertThat().statusCode(404);
         when().get("node/node/node/branch3/res/res3/leaf").then().assertThat().statusCode(404);
         async.complete();
+    }
+
+    private void checkGETStatusCodeWithAwait5sec(final String request, final Integer statusCode) {
+        await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 }
