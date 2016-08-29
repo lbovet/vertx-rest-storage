@@ -40,7 +40,6 @@ public class PathLevelTest extends AbstractTestCase {
 
         // test level 1 with and without trailing slash
         context.assertEquals("[test2/]", get("/tests/crush/test1").body().jsonPath().get("test1").toString());
-        context.assertEquals("[test2/]", get("/tests/crush/test1").body().jsonPath().get("test1").toString());
         context.assertEquals("[test2/]", get("/tests/crush/test1/").body().jsonPath().get("test1").toString());
 
         // test level 2 with and without trailing slash
