@@ -96,6 +96,16 @@ gradle.taskGraph.whenReady { taskGraph ->
     }
 }
 
+allprojects {
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    tasks.withType(Test) {
+        systemProperty "file.encoding", "UTF-8"
+    }
+}
+
 task sourceJar(type: Jar) {
     description = 'Builds a source jar artifact suitable for maven deployment.'
     classifier = 'sources'

@@ -366,4 +366,32 @@ public class StorageExpandTest extends AbstractTestCase {
 
         async.complete();
     }
+
+    @Test
+    public void testWithResourcesHavingDoubleQuotesInTheName(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar1\" }").put("/server/resources/res:1");
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar2\" }").put("/server/resources/res2");
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar3\" }").put("/server/resources/999;_hello-:@$&()*+,=-._~!'");
+
+        given()
+                .urlEncodingEnabled(false)
+                .body("{ \"subResources\": [\"res:1\", \"res2\", \"999;_hello-:@$&()*+,=-._~!'\"] }")
+                .when()
+                .post(POST_STORAGE_EXP).prettyPrint();
+
+        given()
+                .urlEncodingEnabled(false)
+                .body("{ \"subResources\": [\"res:1\", \"res2\", \"999;_hello-:@$&()*+,=-._~!'\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
+                .body("", allOf(hasKey("res:1"), hasKey("res2"), hasKey("999;_hello-:@$&()*+,=-._~!'")))
+                .body("res2.foo", equalTo("bar2"));
+
+        async.complete();
+    }
 }
