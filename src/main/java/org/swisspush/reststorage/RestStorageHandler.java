@@ -10,6 +10,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.streams.Pump;
 import io.vertx.ext.web.Router;
 import org.swisspush.reststorage.util.LockMode;
+import org.swisspush.reststorage.util.ResourceNameUtil;
 import org.swisspush.reststorage.util.StatusCode;
 
 import java.util.ArrayList;
@@ -93,6 +94,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             for (int i = 0; i < subResourcesArray.size(); i++) {
                                 subResourceNames.add(subResourcesArray.getString(i));
                             }
+                            ResourceNameUtil.replaceColonsAndSemiColonsInList(subResourceNames);
                         } catch(RuntimeException ex){
                             respondWithBadRequest(ctx.request(), "Bad Request: Unable to parse body of storageExpand POST request");
                             return;
@@ -233,6 +235,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                                 }
                                 body.append("</div><ul style='padding: 12px; font-size: 1.2em;' class='unstyled'><li><a href=\"../?follow=off\">..</a></li>");
                                 List<String> sortedNames = sortedNames(collection);
+                                ResourceNameUtil.resetReplacedColonsAndSemiColonsInList(sortedNames);
                                 for (String name : sortedNames) {
                                     body.append("<li><a href=\"" + name + "\">" + name + "</a>");
                                     body.append("</li>");
@@ -244,6 +247,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                             } else {
                                 JsonArray array = new JsonArray();
                                 List<String> sortedNames = sortedNames(collection);
+                                ResourceNameUtil.resetReplacedColonsAndSemiColonsInList(sortedNames);
                                 sortedNames.forEach(array::add);
                                 if (log.isTraceEnabled()) {
                                     log.trace("RestStorageHandler return collection: " + sortedNames);

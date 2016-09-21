@@ -17,6 +17,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.swisspush.reststorage.util.LockMode;
 import org.swisspush.reststorage.util.ModuleConfiguration;
+import org.swisspush.reststorage.util.ResourceNameUtil;
 
 import java.io.*;
 import java.util.*;
@@ -451,7 +452,7 @@ public class RedisStorage implements Storage {
 
                     for (Object resultEntry : resultArr) {
                         JsonArray entries = (JsonArray) resultEntry;
-                        String subResourceName = entries.getString(0);
+                        String subResourceName = ResourceNameUtil.resetReplacedColonsAndSemiColons(entries.getString(0));
                         String subResourceValue = entries.getString(1);
                         if(subResourceValue.startsWith("[") && subResourceValue.endsWith("]")){
                             expandResult.put(subResourceName, extractSortedJsonArray(subResourceValue));
@@ -865,7 +866,7 @@ public class RedisStorage implements Storage {
         if (path.equals("/")) {
             path = "";
         }
-        return path.replaceAll(":", "§").replaceAll("/", ":");
+        return ResourceNameUtil.replaceColonsAndSemiColons(path).replaceAll("/", ":");
     }
 
     private String encodeBinary(byte[] bytes) {

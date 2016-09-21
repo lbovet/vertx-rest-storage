@@ -1,3 +1,4 @@
+
 package org.swisspush.reststorage;
 
 import com.jayway.awaitility.Duration;
@@ -7,6 +8,8 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.util.List;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.restassured.RestAssured.*;
@@ -22,7 +25,6 @@ public class CrudTest extends AbstractTestCase {
 
         // put with double slashes
         with().urlEncodingEnabled(false).body("{ \"foo\": \"bar\" }").put("resources//myres");
-
         // get with single/double slashes should both work
         when().get("resources/myres").then().assertThat().body("foo", equalTo("bar"));
         given().urlEncodingEnabled(false).when().get("resources//myres").then().assertThat().body("foo", equalTo("bar"));
@@ -296,7 +298,90 @@ public class CrudTest extends AbstractTestCase {
         async.complete();
     }
 
+    @Test
+    public void testGetSingleResourceWithColonsAndSemiColonsInName(TestContext context) {
+        Async async = context.async();
+
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar\" }").put("resources/1_hello-:@$&()*+,;=-._~!'");
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/1_hello-:@$&()*+,;=-._~!'", 200);
+
+        async.complete();
+    }
+
+    @Test
+    public void testGetAndDeleteResourceWithColonsAndSemiColonsInTheName(TestContext context) {
+        Async async = context.async();
+
+        String res1 = "999_hello-:@$&()*+,;=-._~!'";
+
+        // PUT resource
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar_999\" }").put("resources/"+res1);
+
+        // GET resource
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res1, 200);
+        context.assertEquals("bar_999", given().urlEncodingEnabled(false).when().get("resources/"+res1).jsonPath().getString("foo"));
+
+        // DELETE resource
+        given().urlEncodingEnabled(false).when().delete("resources/"+res1).then().assertThat().statusCode(200);
+
+        // check if deleted
+        given().urlEncodingEnabled(false).when().get("resources/"+res1).then().assertThat().statusCode(404);
+
+        async.complete();
+    }
+
+    @Test
+    public void testGetCollectionHavingResourcesWithColonsAndSemiColonsInTheName(TestContext context) {
+        Async async = context.async();
+
+        String res1 = "1_hello-:@$&()*+,;=-._~!'";
+        String res2 = "2_hello-:@$&()*+,;=-._~!'";
+        String res3 = "3_hello";
+
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar\" }").put("resources/"+res1);
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar2\" }").put("resources/"+res2);
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar3\" }").put("resources/"+res3);
+
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res1, 200);
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res2, 200);
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res3, 200);
+
+        when().get("resources").then().assertThat().body("resources", hasItems(res1, res2, res3));
+        async.complete();
+    }
+
+    @Test
+    public void testGetHTMLCollectionHavingResourcesWithColonsAndSemiColonsInTheName(TestContext context) {
+        Async async = context.async();
+
+        String res1 = "1_hello-:@$&()*+,;=-._~!'";
+        String res2 = "2_hello-:@$&()*+,;=-._~!'";
+        String res3 = "3_hello";
+
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar\" }").put("resources/"+res1);
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar2\" }").put("resources/"+res2);
+        with().urlEncodingEnabled(false).body("{ \"foo\": \"bar3\" }").put("resources/"+res3);
+
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res1, 200);
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res2, 200);
+        checkGETStatusCodeWithAwait5secNoUrlEncoding("resources/"+res3, 200);
+
+        String title = given().header("Accept", "text/html").when().get("resources").htmlPath().getString("html.head.title");
+        context.assertEquals("resources", title);
+
+        List<String> listItems = given().header("Accept", "text/html").when().get("resources").htmlPath().getList("html.body.ul.li");
+        context.assertEquals(res1, listItems.get(1));
+        context.assertEquals(res2, listItems.get(2));
+        context.assertEquals(res3, listItems.get(3));
+
+        async.complete();
+    }
+
     private void checkGETStatusCodeWithAwait5sec(final String request, final Integer statusCode) {
         await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
+    }
+
+    private void checkGETStatusCodeWithAwait5secNoUrlEncoding(final String request, final Integer statusCode) {
+        await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(given().urlEncodingEnabled(false).when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 }
