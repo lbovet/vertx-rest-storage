@@ -15,6 +15,7 @@ import static org.junit.Assert.assertThat;
 
 public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
 
+    private final static String COMPRESSED = "compressed";
     private final static String RESOURCE = "resource";
     private final static String ETAG = "etag";
     private final static String OWNER = "owner";
@@ -86,6 +87,61 @@ public class RedisPutLuaScriptTests extends AbstractLuaScriptTest {
         String result = jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE);
         JsonObject obj = new JsonObject(result);
         assertThat(obj.getString("content"), equalTo("test_test1_test3"));
+    }
+
+    @Test
+    public void testStoreCompressedAndUnCompressedWithSameEtagValue() {
+
+        String originalContent = "{\"content\": \"originalContent\"}";
+        String modifiedContent = "{\"content\": \"modifiedContent\"}";
+        String etagValue = "etag1";
+
+        // Scenario 1: PUT 1 = {uncompressed, etag1}, PUT 2 = {compressed, etag1}
+        String putResult1 = evalScriptPut(":project:server:test:test1:test2", originalContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, false);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(false));
+        String putResult2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, true);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(true));
+
+        assertThat(putResult1, is(not(equalTo("notModified"))));
+        assertThat(putResult2, is(not(equalTo("notModified"))));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG), equalTo(etagValue));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(modifiedContent));
+
+        // Scenario 2: PUT 1 = {compressed, etag1}, PUT 2 = {uncompressed, etag1}
+        jedis.flushAll();
+        putResult1 = evalScriptPut(":project:server:test:test1:test2", originalContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, true);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(true));
+        putResult2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, false);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(false));
+
+        assertThat(putResult1, is(not(equalTo("notModified"))));
+        assertThat(putResult2, is(not(equalTo("notModified"))));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG), equalTo(etagValue));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(modifiedContent));
+
+        // Scenario 3: PUT 1 = {compressed, etag1}, PUT 2 = {compressed, etag1}
+        jedis.flushAll();
+        putResult1 = evalScriptPut(":project:server:test:test1:test2", originalContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, true);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(true));
+        putResult2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, true);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(true));
+
+        assertThat(putResult1, is(not(equalTo("notModified"))));
+        assertThat(putResult2, is(equalTo("notModified")));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG), equalTo(etagValue));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(originalContent));
+
+        // Scenario 4: PUT 1 = {uncompressed, etag1}, PUT 2 = {uncompressed, etag1}
+        jedis.flushAll();
+        putResult1 = evalScriptPut(":project:server:test:test1:test2", originalContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, false);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(false));
+        putResult2 = evalScriptPut(":project:server:test:test1:test2", modifiedContent, AbstractLuaScriptTest.MAX_EXPIRE, etagValue, false);
+        assertThat(jedis.hexists("rest-storage:resources:project:server:test:test1:test2", COMPRESSED), is(false));
+
+        assertThat(putResult1, is(not(equalTo("notModified"))));
+        assertThat(putResult2, is(equalTo("notModified")));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", ETAG), equalTo(etagValue));
+        assertThat(jedis.hget("rest-storage:resources:project:server:test:test1:test2", RESOURCE), equalTo(originalContent));
     }
 
     @Test

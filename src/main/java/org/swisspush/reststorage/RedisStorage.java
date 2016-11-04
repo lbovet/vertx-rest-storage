@@ -611,7 +611,18 @@ public class RedisStorage implements Storage {
     }
 
 
+    @Override
     public void put(String path, final String etag, final boolean merge, final long expire, final String lockOwner, final LockMode lockMode, final long lockExpire, final Handler<Resource> handler) {
+        put(path, etag, merge, expire, lockOwner, lockMode, lockExpire, false, handler);
+    }
+
+    @Override
+    public void put(String path, final String etag, final boolean merge, final long expire, final Handler<Resource> handler) {
+        put(path, etag, merge, expire, "", LockMode.SILENT, 0, handler);
+    }
+
+    @Override
+    public void put(String path, String etag, boolean merge, long expire, String lockOwner, LockMode lockMode, long lockExpire, boolean storeCompressed, Handler<Resource> handler) {
         final String key = encodePath(path);
         final DocumentResource d = new DocumentResource();
         final ByteArrayWriteStream stream = new ByteArrayWriteStream();
@@ -639,16 +650,12 @@ public class RedisStorage implements Storage {
                     redisLockPrefix,
                     lockOwner,
                     lockMode.text(),
-                    lockExpireInMillis
+                    lockExpireInMillis,
+                    storeCompressed ? "1" : "0"
             );
             reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arguments, handler), 0);
         };
         handler.handle(d);
-    }
-
-    @Override
-    public void put(String path, final String etag, final boolean merge, final long expire, final Handler<Resource> handler) {
-        put(path, etag, merge, expire, "", LockMode.SILENT, 0, handler);
     }
 
     /**

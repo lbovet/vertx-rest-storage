@@ -25,6 +25,7 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
     private static final String EXPIRE_AFTER_HEADER = "x-expire-after";
     private static final String ETAG_HEADER = "Etag";
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
+    private static final String COMPRESS_HEADER = "x-stored-compressed";
     private static final String LOCK_HEADER = "x-lock";
     private static final String LOCK_MODE_HEADER = "x-lock-mode";
     private static final String LOCK_EXPIRE_AFTER_HEADER = "x-lock-expire-after";
@@ -349,7 +350,17 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
 
-        storage.put(path, etag, merge, expire, lock, lockMode, lockExpire, resource -> {
+        boolean storeCompressed = Boolean.parseBoolean(ctx.request().headers().get(COMPRESS_HEADER));
+
+        if(merge && storeCompressed){
+            ctx.request().resume();
+            ctx.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            ctx.response().setStatusMessage("Invalid parameter/header combination: merge parameter and " + COMPRESS_HEADER + " header cannot be used concurrently");
+            ctx.response().end(ctx.response().getStatusMessage());
+            return;
+        }
+
+        storage.put(path, etag, merge, expire, lock, lockMode, lockExpire, storeCompressed, resource -> {
             ctx.request().resume();
 
             if (resource.rejected) {
