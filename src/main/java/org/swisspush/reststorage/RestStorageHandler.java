@@ -134,6 +134,17 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     log.trace("RestStorageHandler resource exists: " + resource.exists);
                 }
 
+                if(resource.error){
+                    ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                    String message = StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage();
+                    if(resource.errorMessage != null){
+                        message = resource.errorMessage;
+                    }
+                    ctx.response().end(message);
+                    return;
+                }
+
                 if (!resource.modified) {
                     ctx.response().setStatusCode(StatusCode.NOT_MODIFIED.getStatusCode());
                     ctx.response().setStatusMessage(StatusCode.NOT_MODIFIED.getStatusMessage());
@@ -362,6 +373,17 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
 
         storage.put(path, etag, merge, expire, lock, lockMode, lockExpire, storeCompressed, resource -> {
             ctx.request().resume();
+
+            if(resource.error){
+                ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                ctx.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                String message = StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage();
+                if(resource.errorMessage != null){
+                    message = resource.errorMessage;
+                }
+                ctx.response().end(message);
+                return;
+            }
 
             if (resource.rejected) {
                 ctx.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());

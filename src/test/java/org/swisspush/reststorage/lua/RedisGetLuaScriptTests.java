@@ -13,6 +13,29 @@ public class RedisGetLuaScriptTests extends AbstractLuaScriptTest {
     private final static String TYPE_RESOURCE = "TYPE_RESOURCE";
 
     @Test
+    public void getCompressedResource() {
+
+        // ARRANGE
+        evalScriptPut(":project:server:test:resource1", "{\"content\": \"originalContent\"}", AbstractLuaScriptTest.MAX_EXPIRE, "etag1", true);
+        evalScriptPut(":project:server:test:resource2", "{\"content\": \"originalContent2\"}", AbstractLuaScriptTest.MAX_EXPIRE, "etag2", false);
+
+        // ACT
+        List<String> valuesResource1 = (List<String>) evalScriptGet(":project:server:test:resource1");
+        List<String> valuesResource2 = (List<String>) evalScriptGet(":project:server:test:resource2");
+
+        // ASSERT
+        assertThat(valuesResource1.get(0), equalTo(TYPE_RESOURCE));
+        assertThat(valuesResource1.get(1), equalTo("{\"content\": \"originalContent\"}"));
+        assertThat(valuesResource1.get(2), equalTo("etag1"));
+        assertThat(valuesResource1.get(3), notNullValue());
+
+        assertThat(valuesResource2.get(0), equalTo(TYPE_RESOURCE));
+        assertThat(valuesResource2.get(1), equalTo("{\"content\": \"originalContent2\"}"));
+        assertThat(valuesResource2.get(2), equalTo("etag2"));
+        assertThat(valuesResource2.get(3), nullValue());
+    }
+
+    @Test
     public void getResourcePathDepthIs3() {
 
         // ARRANGE

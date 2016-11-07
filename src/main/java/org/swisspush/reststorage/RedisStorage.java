@@ -523,13 +523,30 @@ public class RedisStorage implements Storage {
             String valueStr = values.getString(1);
             DocumentResource r = new DocumentResource();
             byte[] content = decodeBinary(valueStr);
-            r.readStream = new ByteArrayReadStream(content);
-            r.length = content.length;
-            r.etag = values.getString(2);
-            r.closeHandler = event -> {
-                // nothing to close
-            };
-            handler.handle(r);
+            if(!values.hasNull(3)){
+                // data is compressed
+                GZIPUtil.decompressResource(vertx, content, decompressedResult -> {
+                    if(decompressedResult.succeeded()) {
+                        r.readStream = new ByteArrayReadStream(decompressedResult.result());
+                        r.length = decompressedResult.result().length;
+                        r.etag = values.getString(2);
+                        r.closeHandler = event -> {
+                            // nothing to close
+                        };
+                        handler.handle(r);
+                    } else {
+                        error(handler, "Error during decompression of resource: " + decompressedResult.cause().getMessage());
+                    }
+                });
+            } else {
+                r.readStream = new ByteArrayReadStream(content);
+                r.length = content.length;
+                r.etag = values.getString(2);
+                r.closeHandler = event -> {
+                    // nothing to close
+                };
+                handler.handle(r);
+            }
         } else if("TYPE_COLLECTION".equals(type)) {
             CollectionResource r = new CollectionResource();
             Set<Resource> items = new HashSet<>();
@@ -660,6 +677,8 @@ public class RedisStorage implements Storage {
                                 storeCompressed ? "1" : "0"
                         );
                         reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arg, handler), 0);
+                    } else {
+                        error(handler, "Error during compression of resource");
                     }
                 });
             } else {
@@ -940,6 +959,13 @@ public class RedisStorage implements Storage {
         Resource r = new Resource();
         r.invalid = true;
         r.invalidMessage = invalidMessage;
+        handler.handle(r);
+    }
+
+    private void error(Handler<Resource> handler, String errorMessage){
+        Resource r = new Resource();
+        r.error = true;
+        r.errorMessage = errorMessage;
         handler.handle(r);
     }
 

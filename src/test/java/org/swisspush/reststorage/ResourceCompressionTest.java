@@ -70,6 +70,23 @@ public class ResourceCompressionTest extends AbstractTestCase {
         async.complete();
     }
 
+    @Test
+    public void testGetFailHandlingForCorruptCompressedData(TestContext context) {
+        Async async = context.async();
+        putResource("{ \"foo\": \"bar\" }", true, 200);
+
+        // cripple compressed data to make it impossible to decompress
+        jedis.hset("rest-storage:resources:res", "resource", "xxx");
+
+        when()
+                .get("res")
+                .then().assertThat()
+                .statusCode(500)
+                .body(containsString("Error during decompression of resource: Not in GZIP format"));
+
+        async.complete();
+    }
+
     private void putResource(String body, boolean storeCompressed, int statusCode){
         RequestSpecification spec = given().header(IF_NONE_MATCH_HEADER, "etag1");
         if(storeCompressed){
