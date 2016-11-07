@@ -15,6 +15,7 @@ import io.vertx.redis.RedisOptions;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
+import org.swisspush.reststorage.util.GZIPUtil;
 import org.swisspush.reststorage.util.LockMode;
 import org.swisspush.reststorage.util.ModuleConfiguration;
 import org.swisspush.reststorage.util.ResourceNameUtil;
@@ -638,22 +639,47 @@ public class RedisStorage implements Storage {
             String lockExpireInMillis = String.valueOf(System.currentTimeMillis() + (lockExpire * 1000));
 
             List<String> keys = Collections.singletonList(key);
-            List<String> arguments = Arrays.asList(
-                    redisResourcesPrefix,
-                    redisCollectionsPrefix,
-                    expirableSet,
-                    merge ? "true" : "false",
-                    expireInMillis,
-                    MAX_EXPIRE_IN_MILLIS,
-                    encodeBinary(stream.getBytes()),
-                    etagValue,
-                    redisLockPrefix,
-                    lockOwner,
-                    lockMode.text(),
-                    lockExpireInMillis,
-                    storeCompressed ? "1" : "0"
-            );
-            reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arguments, handler), 0);
+
+            if (storeCompressed) {
+                String finalExpireInMillis = expireInMillis;
+                GZIPUtil.compressResource(vertx, stream.getBytes(), compressResourceResult -> {
+                    if(compressResourceResult.succeeded()) {
+                        List<String> arg = Arrays.asList(
+                                redisResourcesPrefix,
+                                redisCollectionsPrefix,
+                                expirableSet,
+                                merge ? "true" : "false",
+                                finalExpireInMillis,
+                                MAX_EXPIRE_IN_MILLIS,
+                                encodeBinary(compressResourceResult.result()),
+                                etagValue,
+                                redisLockPrefix,
+                                lockOwner,
+                                lockMode.text(),
+                                lockExpireInMillis,
+                                storeCompressed ? "1" : "0"
+                        );
+                        reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arg, handler), 0);
+                    }
+                });
+            } else {
+                List<String> arguments = Arrays.asList(
+                        redisResourcesPrefix,
+                        redisCollectionsPrefix,
+                        expirableSet,
+                        merge ? "true" : "false",
+                        expireInMillis,
+                        MAX_EXPIRE_IN_MILLIS,
+                        encodeBinary(stream.getBytes()),
+                        etagValue,
+                        redisLockPrefix,
+                        lockOwner,
+                        lockMode.text(),
+                        lockExpireInMillis,
+                        storeCompressed ? "1" : "0"
+                );
+                reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arguments, handler), 0);
+            }
         };
         handler.handle(d);
     }
