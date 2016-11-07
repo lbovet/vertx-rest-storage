@@ -443,6 +443,10 @@ public class RedisStorage implements Storage {
                     if (log.isTraceEnabled()) {
                         log.trace("RedisStorage get result: " + value);
                     }
+                    if("compressionNotSupported".equalsIgnoreCase((String) value)){
+                        error(handler, "Collections having compressed resources are not supported in storage expand");
+                        return;
+                    }
                     if("notFound".equalsIgnoreCase((String) value)){
                         notFound(handler);
                         return;

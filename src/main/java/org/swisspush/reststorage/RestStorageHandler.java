@@ -512,6 +512,17 @@ public class RestStorageHandler implements Handler<HttpServerRequest> {
                     final String etag = ctx.request().headers().get(IF_NONE_MATCH_HEADER);
                     storage.storageExpand(path, etag, subResourceNames, resource -> {
 
+                        if(resource.error){
+                            ctx.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());
+                            ctx.response().setStatusMessage(StatusCode.CONFLICT.getStatusMessage());
+                            String message = StatusCode.CONFLICT.getStatusMessage();
+                            if(resource.errorMessage != null){
+                                message = resource.errorMessage;
+                            }
+                            ctx.response().end(message);
+                            return;
+                        }
+
                         if(resource.invalid){
                             ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                             ctx.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());

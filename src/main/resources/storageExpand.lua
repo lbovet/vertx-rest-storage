@@ -33,6 +33,14 @@ local function isCollection(resName)
     return false
 end
 
+local function isCompressed(resourcePath)
+    if redis.call('hexists',resourcePath,'compressed') == 1 then
+        return true
+    else
+        return false
+    end
+end
+
 local result = {}
 local subResourcesTable = splitToTable(";", subResources);
 
@@ -53,6 +61,9 @@ for i=1,subResourcesCount do
     else
         local resPath = resourcesPrefix..path..sep..subResName
         if redis.call('exists',resPath) == 1 then
+            if isCompressed(resPath) then
+                return "compressionNotSupported"
+            end
             local score = tonumber(redis.call('zscore',expirableSet,resPath))
             if score == nil or score > timestamp then
                 local res = (redis.call('hget',resPath,'resource'))
