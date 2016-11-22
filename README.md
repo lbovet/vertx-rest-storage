@@ -138,7 +138,8 @@ When making a GET request to a compressed resource, the resource will be uncompr
 The data compression feature is not compatible with all vertx-rest-storage features. The following listing contains the restrictions of this feature: 
 * Data compression is available in redis storage only
 * Data compression cannot be used with _merge=true_ url parameter concurrently. Such PUT requests will be rejected.
-* Compressed resources cannot be used in _storageExpand_ requests. _storageExpand_ requests to a collection containing a compressed resource will be rejected. 
+* Compressed resources cannot be used in _storageExpand_ requests. _storageExpand_ requests to a collection containing a compressed resource will be rejected.
+* If a resource is already stored in a different compression state (state = not compressed, compressed) as the compression of sent resource, the stored resource will be overwritten in every case. Like this we prevent unexpected behaviour considering the etag mechanism. 
 
 ## Configuration
 

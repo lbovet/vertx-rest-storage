@@ -26,6 +26,10 @@ public class ResourceCompressionTest extends AbstractTestCase {
         async.complete();
     }
 
+    /**
+     * The resource has always to be overwritten, if the compression state differs between the sent resource
+     * and the stored resource. This behaviour is, to prevent unexpected behaviour considering the etag mechanism.
+     */
     @Test
     public void testStoreCompressedAndUnCompressed() {
 
