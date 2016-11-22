@@ -130,6 +130,11 @@ public class FileSystemStorage implements Storage {
         });
     }
 
+    @Override
+    public void put(String path, String etag, boolean merge, long expire, String lockOwner, LockMode lockMode, long lockExpire, boolean storeCompressed, Handler<Resource> handler) {
+        throw new UnsupportedOperationException("Method 'put' with compressing resource is not yet implemented for the FileSystemStorage");
+    }
+
     private void putFile(final Handler<Resource> handler, final String fullPath) {
         final String tempFile = fullPath + "." + UUID.randomUUID().toString();
         fileSystem().open(tempFile, new OpenOptions(), event -> {

@@ -15,6 +15,7 @@ import io.vertx.redis.RedisOptions;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
+import org.swisspush.reststorage.util.GZIPUtil;
 import org.swisspush.reststorage.util.LockMode;
 import org.swisspush.reststorage.util.ModuleConfiguration;
 import org.swisspush.reststorage.util.ResourceNameUtil;
@@ -442,6 +443,10 @@ public class RedisStorage implements Storage {
                     if (log.isTraceEnabled()) {
                         log.trace("RedisStorage get result: " + value);
                     }
+                    if("compressionNotSupported".equalsIgnoreCase((String) value)){
+                        error(handler, "Collections having compressed resources are not supported in storage expand");
+                        return;
+                    }
                     if("notFound".equalsIgnoreCase((String) value)){
                         notFound(handler);
                         return;
@@ -522,13 +527,30 @@ public class RedisStorage implements Storage {
             String valueStr = values.getString(1);
             DocumentResource r = new DocumentResource();
             byte[] content = decodeBinary(valueStr);
-            r.readStream = new ByteArrayReadStream(content);
-            r.length = content.length;
-            r.etag = values.getString(2);
-            r.closeHandler = event -> {
-                // nothing to close
-            };
-            handler.handle(r);
+            if(!values.hasNull(3)){
+                // data is compressed
+                GZIPUtil.decompressResource(vertx, content, decompressedResult -> {
+                    if(decompressedResult.succeeded()) {
+                        r.readStream = new ByteArrayReadStream(decompressedResult.result());
+                        r.length = decompressedResult.result().length;
+                        r.etag = values.getString(2);
+                        r.closeHandler = event -> {
+                            // nothing to close
+                        };
+                        handler.handle(r);
+                    } else {
+                        error(handler, "Error during decompression of resource: " + decompressedResult.cause().getMessage());
+                    }
+                });
+            } else {
+                r.readStream = new ByteArrayReadStream(content);
+                r.length = content.length;
+                r.etag = values.getString(2);
+                r.closeHandler = event -> {
+                    // nothing to close
+                };
+                handler.handle(r);
+            }
         } else if("TYPE_COLLECTION".equals(type)) {
             CollectionResource r = new CollectionResource();
             Set<Resource> items = new HashSet<>();
@@ -611,7 +633,18 @@ public class RedisStorage implements Storage {
     }
 
 
+    @Override
     public void put(String path, final String etag, final boolean merge, final long expire, final String lockOwner, final LockMode lockMode, final long lockExpire, final Handler<Resource> handler) {
+        put(path, etag, merge, expire, lockOwner, lockMode, lockExpire, false, handler);
+    }
+
+    @Override
+    public void put(String path, final String etag, final boolean merge, final long expire, final Handler<Resource> handler) {
+        put(path, etag, merge, expire, "", LockMode.SILENT, 0, handler);
+    }
+
+    @Override
+    public void put(String path, String etag, boolean merge, long expire, String lockOwner, LockMode lockMode, long lockExpire, boolean storeCompressed, Handler<Resource> handler) {
         final String key = encodePath(path);
         final DocumentResource d = new DocumentResource();
         final ByteArrayWriteStream stream = new ByteArrayWriteStream();
@@ -627,28 +660,51 @@ public class RedisStorage implements Storage {
             String lockExpireInMillis = String.valueOf(System.currentTimeMillis() + (lockExpire * 1000));
 
             List<String> keys = Collections.singletonList(key);
-            List<String> arguments = Arrays.asList(
-                    redisResourcesPrefix,
-                    redisCollectionsPrefix,
-                    expirableSet,
-                    merge ? "true" : "false",
-                    expireInMillis,
-                    MAX_EXPIRE_IN_MILLIS,
-                    encodeBinary(stream.getBytes()),
-                    etagValue,
-                    redisLockPrefix,
-                    lockOwner,
-                    lockMode.text(),
-                    lockExpireInMillis
-            );
-            reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arguments, handler), 0);
+
+            if (storeCompressed) {
+                String finalExpireInMillis = expireInMillis;
+                GZIPUtil.compressResource(vertx, stream.getBytes(), compressResourceResult -> {
+                    if(compressResourceResult.succeeded()) {
+                        List<String> arg = Arrays.asList(
+                                redisResourcesPrefix,
+                                redisCollectionsPrefix,
+                                expirableSet,
+                                merge ? "true" : "false",
+                                finalExpireInMillis,
+                                MAX_EXPIRE_IN_MILLIS,
+                                encodeBinary(compressResourceResult.result()),
+                                etagValue,
+                                redisLockPrefix,
+                                lockOwner,
+                                lockMode.text(),
+                                lockExpireInMillis,
+                                storeCompressed ? "1" : "0"
+                        );
+                        reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arg, handler), 0);
+                    } else {
+                        error(handler, "Error during compression of resource");
+                    }
+                });
+            } else {
+                List<String> arguments = Arrays.asList(
+                        redisResourcesPrefix,
+                        redisCollectionsPrefix,
+                        expirableSet,
+                        merge ? "true" : "false",
+                        expireInMillis,
+                        MAX_EXPIRE_IN_MILLIS,
+                        encodeBinary(stream.getBytes()),
+                        etagValue,
+                        redisLockPrefix,
+                        lockOwner,
+                        lockMode.text(),
+                        lockExpireInMillis,
+                        storeCompressed ? "1" : "0"
+                );
+                reloadScriptIfLoglevelChangedAndExecuteRedisCommand(LuaScript.PUT, new Put(d, keys, arguments, handler), 0);
+            }
         };
         handler.handle(d);
-    }
-
-    @Override
-    public void put(String path, final String etag, final boolean merge, final long expire, final Handler<Resource> handler) {
-        put(path, etag, merge, expire, "", LockMode.SILENT, 0, handler);
     }
 
     /**
@@ -907,6 +963,13 @@ public class RedisStorage implements Storage {
         Resource r = new Resource();
         r.invalid = true;
         r.invalidMessage = invalidMessage;
+        handler.handle(r);
+    }
+
+    private void error(Handler<Resource> handler, String errorMessage){
+        Resource r = new Resource();
+        r.error = true;
+        r.errorMessage = errorMessage;
         handler.handle(r);
     }
 
