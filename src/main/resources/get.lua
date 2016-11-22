@@ -23,7 +23,7 @@ if redis.call('exists',resourcesPrefix..path) == 1 then
     if score ~= nil and score < timestamp then
         return "notFound"
     else
-        local result = redis.call('hmget',resourcesPrefix..path,'resource','etag')
+        local result = redis.call('hmget',resourcesPrefix..path,'resource','etag','compressed')
         if not_empty(result) then
             if string_not_empty(etag) then
                 local etagStorage = result[2]

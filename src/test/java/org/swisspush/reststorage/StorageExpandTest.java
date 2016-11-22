@@ -30,6 +30,7 @@ public class StorageExpandTest extends AbstractTestCase {
     final String POST_STORAGE_EXP = "/server/resources?storageExpand=true";
     final int BAD_REQUEST = 400;
     final String BAD_REQUEST_PARSE_MSG = "Bad Request: Unable to parse body of storageExpand POST request";
+    final String COMPRESS_HEADER = "x-stored-compressed";
 
     @Before
     public void setPath() {
@@ -391,6 +392,75 @@ public class StorageExpandTest extends AbstractTestCase {
                 .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
                 .body("", allOf(hasKey("res:1"), hasKey("res2"), hasKey("999;_hello-:@$&()*+,=-._~!'")))
                 .body("res2.foo", equalTo("bar2"));
+
+        async.complete();
+    }
+
+    @Test
+    public void testCompressedAndUncompressedDataInCollection(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
+        with().header(COMPRESS_HEADER, "true").body("{ \"foo\": \"bar2\" }").put("/server/resources/res2");
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat()
+                .statusCode(409)
+                .body(containsString("Collections having compressed resources are not supported in storage expand"));
+
+
+        // make storage expand again without the compressed resource
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res3\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
+                .body("", allOf(hasKey("res1"), hasKey("res3")))
+                .body("res1.foo", equalTo("bar1"))
+                .body("res3.foo", equalTo("bar3"));
+
+        async.complete();
+    }
+
+    @Test
+    public void testCompressedResourcesInSubResources(TestContext context) {
+        Async async = context.async();
+        delete("/server/resources");
+
+        with().body("{ \"foo\": \"bar1\" }").put("/server/resources/res1");
+        with().body("{ \"foo\": \"bar2\" }").put("/server/resources/res2");
+        with().body("{ \"foo\": \"bar3\" }").put("/server/resources/res3");
+
+        with().body("{ \"foo\": \"sub1\" }").put("/server/resources/sub/sub1");
+        with().header(COMPRESS_HEADER, "true").body("{ \"foo\": \"sub2\" }").put("/server/resources/sub/sub2");
+
+        given()
+                .body("{ \"subResources\": [\"res1\", \"res2\", \"res3\", \"sub/\"] }")
+                .when()
+                .post(POST_STORAGE_EXP)
+                .then()
+                .assertThat().statusCode(200).contentType(ContentType.JSON).header(ETAG_HEADER, not(empty()))
+                .body("", allOf(hasKey("res1"), hasKey("res2"), hasKey("res3"), hasKey("sub")))
+                .body("res1.foo", equalTo("bar1"))
+                .body("res2.foo", equalTo("bar2"))
+                .body("res3.foo", equalTo("bar3"))
+                .body("sub", hasItems("sub1", "sub2"));
+
+        given()
+                .body("{ \"subResources\": [\"sub1\", \"sub2\"] }")
+                .when()
+                .post("/server/resources/sub?storageExpand=true")
+                .then()
+                .assertThat()
+                .statusCode(409)
+                .body(containsString("Collections having compressed resources are not supported in storage expand"));;
 
         async.complete();
     }

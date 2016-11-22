@@ -121,8 +121,16 @@ public abstract class AbstractLuaScriptTest {
         return evalScriptPut(resourceName, resourceValue, expire, etag, "", LockMode.SILENT, 300);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked", "serial"})
+    protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire, final String etag, boolean storeCompressed) {
+        return evalScriptPut(resourceName, resourceValue, expire, etag, "", LockMode.SILENT, 300, storeCompressed);
+    }
+
     protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire, final String etag, final String lockOwner, final LockMode lockMode, final long lockExpire) {
+        return evalScriptPut(resourceName, resourceValue, expire, etag, lockOwner, lockMode, lockExpire, false);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked", "serial"})
+    protected String evalScriptPut(final String resourceName, final String resourceValue, final String expire, final String etag, final String lockOwner, final LockMode lockMode, final long lockExpire, boolean storeCompressed) {
         String putScript = readScript("put.lua");
         String etagTmp;
         if (etag != null && !etag.isEmpty()) {
@@ -152,6 +160,7 @@ public abstract class AbstractLuaScriptTest {
                         add(lockOwner);
                         add(lockMode.text());
                         add(lockExpireInMillis);
+                        add(storeCompressed ? "1" : "0");
                     }
                 }
         );

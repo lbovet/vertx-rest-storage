@@ -8,7 +8,9 @@ public class Resource implements Comparable<Resource>{
     public boolean modified = true;
     public boolean invalid = false;
     public boolean rejected = false;
+    public boolean error = false;
     public String invalidMessage;
+    public String errorMessage;
 
     public Handler<String> errorHandler;
     

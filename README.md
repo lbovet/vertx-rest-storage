@@ -124,6 +124,23 @@ To lock a resource, you have to add the following headers to your PUT / DELETE r
 
 `Warning:` The lock will be always removed if you perform a DELETE on a collection containing a locked resource. There is no check for locks in collections.
 
+### Store data compressed
+In order to optimize the memory usage when using the redis storage, it's possible to store resources compressed using
+the gzip compression algorithm.
+
+To store a resource compressed, add the following header to the PUT request:
+> x-stored-compressed: true
+
+When making a GET request to a compressed resource, the resource will be uncompressed before returning. No additional header is required!
+
+**Restrictions**
+
+The data compression feature is not compatible with all vertx-rest-storage features. The following listing contains the restrictions of this feature: 
+* Data compression is available in redis storage only
+* Data compression cannot be used with _merge=true_ url parameter concurrently. Such PUT requests will be rejected.
+* Compressed resources cannot be used in _storageExpand_ requests. _storageExpand_ requests to a collection containing a compressed resource will be rejected.
+* If a resource is already stored in a different compression state (state = not compressed, compressed) as the compression of sent resource, the stored resource will be overwritten in every case. Like this we prevent unexpected behaviour considering the etag mechanism. 
+
 ## Configuration
 
 The following configuration values are available:

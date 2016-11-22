@@ -272,6 +272,47 @@ public class RedisStorageExpandLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(value.get(1).get(1), equalTo("{\"content\": \"content_3\"}"));
     }
 
+    @Test
+    public void testStorageExpandCompressedDataInCollection() {
+
+        // ARRANGE
+        evalScriptPut(":project:server:test:item1", "{\"content\": \"content_1\"}", AbstractLuaScriptTest.MAX_EXPIRE, "etag1", true);
+
+        // ACT
+        List<String> subResources = Arrays.asList("item1");
+        String value = (String) evalScriptStorageExpand(":project:server:test", subResources);
+
+        // ASSERT
+        assertThat(value, equalTo("compressionNotSupported"));
+    }
+
+    @Test
+    public void testStorageExpandCompressedAndUncompressedDataInCollection() {
+
+        // ARRANGE
+        evalScriptPut(":project:server:test:item1", "{\"content\": \"content_1\"}", AbstractLuaScriptTest.MAX_EXPIRE, "etag1", false);
+        evalScriptPut(":project:server:test:item2", "{\"content\": \"content_2\"}", AbstractLuaScriptTest.MAX_EXPIRE, "etag2", true);
+        evalScriptPut(":project:server:test:item3", "{\"content\": \"content_3\"}", AbstractLuaScriptTest.MAX_EXPIRE, "etag3", false);
+
+        // ACT
+        List<String> subResources = Arrays.asList("item2", "item1", "item3");
+        String value = (String) evalScriptStorageExpand(":project:server:test", subResources);
+
+        // ASSERT
+        assertThat(value, equalTo("compressionNotSupported"));
+
+        // ACT
+        List<String> subResources2 = Arrays.asList("item1", "item3");
+        List<List<String>> value2 = evalScriptStorageExpandAndExtract(":project:server:test", subResources2);
+
+        // ASSERT
+        assertThat(value2.size(), equalTo(2));
+        assertThat(value2.get(0).get(0), equalTo("item1"));
+        assertThat(value2.get(0).get(1), equalTo("{\"content\": \"content_1\"}"));
+        assertThat(value2.get(1).get(0), equalTo("item3"));
+        assertThat(value2.get(1).get(1), equalTo("{\"content\": \"content_3\"}"));
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked", "serial"})
     private Object evalScriptStorageExpand(final String resourceName1, final List<String> subResources) {
         return evalScriptStorageExpand(resourceName1, subResources, String.valueOf(System.currentTimeMillis()));
