@@ -569,9 +569,13 @@ public class RedisStorage implements Storage {
                     }
                 }
             }
-            r.items = new ArrayList<>(items);
-            Collections.sort(r.items);
-            handler.handle(r);
+            if(items.size()==0) {
+                notFound(handler);
+            } else {
+                r.items = new ArrayList<>(items);
+                Collections.sort(r.items);
+                handler.handle(r);
+            }
         } else {
             notFound(handler);
         }
