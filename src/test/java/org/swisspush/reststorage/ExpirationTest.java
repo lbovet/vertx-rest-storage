@@ -232,6 +232,9 @@ public class ExpirationTest extends AbstractTestCase {
 
         when().get("root/foo/bar1").then().assertThat().statusCode(200);
         when().get("root/foo/bar2").then().assertThat().statusCode(404);
+        when().get("root/foo").then().assertThat().statusCode(200)
+                .and().body("foo", hasSize(1))
+                .and().body("foo", hasItem("bar1"));
         when().get("root").then().assertThat().statusCode(200).and().body("root", hasItem("foo/"));
 
         async.complete();
@@ -257,19 +260,23 @@ public class ExpirationTest extends AbstractTestCase {
                 then().
                 assertThat().statusCode(200);
 
-        when().get("root/foo").then().assertThat().statusCode(200).and().body("foo", hasItem("bar2"));
+        //when().get("root/foo").then().assertThat().statusCode(200).and().body("foo", hasItem("bar2"));
 
         await().atMost(3, TimeUnit.SECONDS).until(() -> get("root/foo/bar2").statusCode(), equalTo(404));
-
+/*
         when().get("root/foo/bar1").then().assertThat().statusCode(200);
         when().get("root/foo/bar2").then().assertThat().statusCode(404);
+        when().get("root/foo/").then().assertThat().statusCode(200)
+                .and().body("foo", hasSize(1))
+                .and().body("foo", hasItem("bar1"));
         when().get("root").then().assertThat().statusCode(200).and().body("root", hasItem("foo/"));
-
+*/
         await().atMost(3, TimeUnit.SECONDS).until(() -> get("root/foo/bar1").statusCode(), equalTo(404));
-
+/*
         when().get("root/foo/bar1").then().assertThat().statusCode(404);
-        when().get("root/foo/bar2").then().assertThat().statusCode(404);
-        when().get("root").then().assertThat().statusCode(200).and().body("root", hasSize(0));
+        when().get("root/foo/bar2").then().assertThat().statusCode(404);*/
+        when().get("root/foo/").then().assertThat().statusCode(404);
+//        when().get("root").then().assertThat().statusCode(404);
 
         async.complete();
     }

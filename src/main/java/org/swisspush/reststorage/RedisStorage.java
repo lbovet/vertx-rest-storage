@@ -381,7 +381,7 @@ public class RedisStorage implements Storage {
                     } else if ("notFound".equals(values.getString(0))) {
                         notFound(handler);
                     } else {
-                        handleJsonArrayValues(values, handler);
+                        handleJsonArrayValues(values, handler, "0".equals(arguments.get(5)) && "-1".equals(arguments.get(6)));
                     }
                 } else {
                     String message = event.cause().getMessage();
@@ -521,7 +521,7 @@ public class RedisStorage implements Storage {
         return new JsonArray(new ArrayList<Object>(collections));
     }
 
-    private void handleJsonArrayValues(JsonArray values, Handler<Resource> handler){
+    private void handleJsonArrayValues(JsonArray values, Handler<Resource> handler, boolean allowEmptyReturn){
         String type = values.getString(0);
         if("TYPE_RESOURCE".equals(type)){
             String valueStr = values.getString(1);
@@ -569,9 +569,13 @@ public class RedisStorage implements Storage {
                     }
                 }
             }
-            r.items = new ArrayList<>(items);
-            Collections.sort(r.items);
-            handler.handle(r);
+            if(allowEmptyReturn && items.size()==0) {
+                notFound(handler);
+            } else {
+                r.items = new ArrayList<>(items);
+                Collections.sort(r.items);
+                handler.handle(r);
+            }
         } else {
             notFound(handler);
         }

@@ -69,7 +69,7 @@ end
 for key,value in pairs(collections) do
     local collectionKey = collectionsPrefix..key
     local actualExpiration = expiration
-    local contentMax = redis.call('zrange',collectionKey,-1,-1, "withscores")[2]
+    local contentMax = redis.call('zrange',collectionKey..sep..value,-1,-1, "withscores")[2]
     if contentMax ~= nil and contentMax ~= '' then
         contentMax = tonumber(contentMax)
         if contentMax > actualExpiration then
