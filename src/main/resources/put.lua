@@ -68,8 +68,16 @@ for key,value in pairs(nodes) do
 end
 for key,value in pairs(collections) do
     local collectionKey = collectionsPrefix..key
-    redis.log(redis.LOG_NOTICE, "zadd: "..collectionKey.." "..expiration.." "..value)
-    redis.call('zadd',collectionKey,expiration,value)
+    local actualExpiration = expiration
+    local contentMax = redis.call('zrange',collectionKey,-1,-1, "withscores")[2]
+    if contentMax ~= nil and contentMax ~= '' then
+        contentMax = tonumber(contentMax)
+        if contentMax > actualExpiration then
+            actualExpiration = contentMax
+        end
+    end
+    redis.log(redis.LOG_NOTICE, "zadd: "..collectionKey.." "..actualExpiration.." "..value)
+    redis.call('zadd',collectionKey,actualExpiration,value)
 end
 redis.log(redis.LOG_NOTICE, "merge: "..merge)
 

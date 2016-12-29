@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.TWO_SECONDS;
 import static com.jayway.restassured.RestAssured.*;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.core.IsEqual.equalTo;
 
 @RunWith(VertxUnitRunner.class)
@@ -205,6 +206,71 @@ public class ExpirationTest extends AbstractTestCase {
                 assertThat().statusCode(200);
 
         when().get("resexpireimmediatly/branch1").then().statusCode(200).body("foo", equalTo("bar11"));
+        async.complete();
+    }
+
+    @Test
+    public void testCollectionDoesNotExpireBeforeContainedResource(TestContext context) {
+        Async async = context.async();
+
+        given().
+                body("{ \"foo\": \"bar1\" }").
+                when().
+                put("root/foo/bar1").
+                then().
+                assertThat().statusCode(200);
+
+        given().
+                header("x-expire-after", "1").
+                body("{ \"foo\": \"bar2\" }").
+                when().
+                put("root/foo/bar2").
+                then().
+                assertThat().statusCode(200);
+
+        await().atMost(3, TimeUnit.SECONDS).until(() -> get("root/foo/bar2").statusCode(), equalTo(404));
+
+        when().get("root/foo/bar1").then().assertThat().statusCode(200);
+        when().get("root/foo/bar2").then().assertThat().statusCode(404);
+        when().get("root").then().assertThat().statusCode(200).and().body("root", hasItem("foo/"));
+
+        async.complete();
+    }
+
+    @Test
+    public void testCollectionDoesExpireAccordingToOlderContainedResource(TestContext context) {
+        Async async = context.async();
+
+        given().
+                header("x-expire-after", "2").
+                body("{ \"foo\": \"bar1\" }").
+                when().
+                put("root/foo/bar1").
+                then().
+                assertThat().statusCode(200);
+
+        given().
+                header("x-expire-after", "1").
+                body("{ \"foo\": \"bar2\" }").
+                when().
+                put("root/foo/bar2").
+                then().
+                assertThat().statusCode(200);
+
+        when().get("root/foo").then().assertThat().statusCode(200).and().body("foo", hasItem("bar2"));
+
+        await().atMost(3, TimeUnit.SECONDS).until(() -> get("root/foo/bar2").statusCode(), equalTo(404));
+
+        when().get("root/foo/bar1").then().assertThat().statusCode(200);
+        when().get("root/foo/bar2").then().assertThat().statusCode(404);
+        when().get("root").then().assertThat().statusCode(200).and().body("root", hasItem("foo/"));
+
+        await().atMost(3, TimeUnit.SECONDS).until(() -> get("root/foo/bar1").statusCode(), equalTo(404));
+
+        when().get("root/foo/bar1").then().assertThat().statusCode(404);
+        when().get("root/foo/bar2").then().assertThat().statusCode(404);
+        when().get("root").then().assertThat().statusCode(200).and().body("root", hasSize(0));
+
         async.complete();
     }
 }
